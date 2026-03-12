@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Workflow &mdash; MLX-Tune</title>
+  <meta name="description" content="Unsloth to MLX-Tune translation guide. Same API, same workflow — just change the import line.">
+
+  <!-- Favicon: bold "m" in SVG -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230d1117'/><text x='50%25' y='73%25' text-anchor='middle' font-family='system-ui,-apple-system,sans-serif' font-weight='900' font-size='22' fill='%23e6edf3'>m</text></svg>">
+  <link rel="apple-touch-icon" href="assets/img/logo.png">
+
+  <!-- Open Graph / Social -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Workflow - MLX-Tune Translation Guide">
+  <meta property="og:description" content="Unsloth to MLX-Tune translation guide. Same API, same workflow — just change the import line.">
+  <meta property="og:image" content="https://arahim3.github.io/mlx-tune/assets/img/og-image.png">
+  <meta property="og:url" content="https://arahim3.github.io/mlx-tune/workflow.html">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Workflow - MLX-Tune Translation Guide">
+  <meta name="twitter:description" content="Unsloth to MLX-Tune translation guide. Same API, same workflow.">
+  <meta name="twitter:image" content="https://arahim3.github.io/mlx-tune/assets/img/og-image.png">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="assets/css/prism-dark.css">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+  <!-- ===== Navigation ===== -->
+  <nav class="top-nav">
+    <div class="nav-inner">
+      <a href="index.html" class="nav-logo">
+        <img src="assets/img/logo.png" alt="mlx-tune">
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="index.html">Getting Started</a></li>
+        <li><a href="workflow.html" class="active">Workflow</a></li>
+        <li><a href="examples.html">Examples</a></li>
+        <li><a href="api.html">API</a></li>
+        <li><a href="troubleshooting.html">Troubleshooting</a></li>
+      </ul>
+
+      <div class="nav-right">
+        <a href="https://github.com/ARahim3/mlx-tune" class="github-link" target="_blank" rel="noopener" aria-label="GitHub">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+        <button class="theme-toggle" aria-label="Toggle theme"></button>
+        <button class="mobile-toggle" aria-label="Menu">&#9776;</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ===== Main Content ===== -->
+  <div class="page-wrapper">
+
+    <!-- ===== Sidebar ===== -->
+    <aside class="sidebar">
+      <div class="sidebar-title">On This Page</div>
+      <ul class="sidebar-nav">
+        <li><a href="#workflow">The Workflow</a></li>
+        <li><a href="#imports">Import Translation</a></li>
+        <li><a href="#models">Model Names</a></li>
+        <li><a href="#config">Config Differences</a></li>
+        <li><a href="#real-diff">Real Notebook Diff</a></li>
+        <li><a href="#side-by-side">Side-by-Side Example</a></li>
+        <li><a href="#vlm">Vision Models</a></li>
+        <li><a href="#same">What Stays the Same</a></li>
+      </ul>
+    </aside>
+
+    <main class="content">
+
+      <h1>Unsloth &rarr; MLX-Tune Translation Guide</h1>
+      <p>Everything you learned from Unsloth tutorials works on your Mac. This page shows exactly what to change&mdash;and what stays the same.</p>
+
+      <!-- ===== The Workflow ===== -->
+      <section id="workflow">
+        <div class="section-label">The Workflow</div>
+        <h2 style="margin-top: 0;">Three steps to run on Mac</h2>
+        <p>Take any Unsloth tutorial and make it run on Apple Silicon.</p>
+
+        <div class="workflow-steps">
+          <div class="workflow-step">
+            <div class="workflow-step-number">1</div>
+            <h4>Pick an Unsloth Notebook</h4>
+            <p>Find a tutorial from Unsloth&rsquo;s docs or Colab notebooks. Any SFT, DPO, ORPO, or GRPO example will work.</p>
+          </div>
+          <div class="workflow-arrow">&rarr;</div>
+          <div class="workflow-step">
+            <div class="workflow-step-number">2</div>
+            <h4>Change Imports &amp; Model</h4>
+            <p>Swap the import lines and use <code>mlx-community</code> model names instead of <code>unsloth/</code> models.</p>
+          </div>
+          <div class="workflow-arrow">&rarr;</div>
+          <div class="workflow-step">
+            <div class="workflow-step-number">3</div>
+            <h4>Run on Your Mac</h4>
+            <p>Execute locally, iterate fast, then scale to CUDA with the original Unsloth when ready.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== Import Translation ===== -->
+      <section id="imports">
+        <div class="section-label">Import Translation</div>
+        <h2 style="margin-top: 0;">What to change in your imports</h2>
+        <p>Every import maps one-to-one. Replace the left column with the right column.</p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Unsloth / TRL</th>
+              <th>MLX-Tune</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>from unsloth import FastLanguageModel</code></td>
+              <td><code>from mlx_tune import FastLanguageModel</code></td>
+            </tr>
+            <tr>
+              <td><code>from trl import SFTTrainer, SFTConfig</code></td>
+              <td><code>from mlx_tune import SFTTrainer, SFTConfig</code></td>
+            </tr>
+            <tr>
+              <td><code>from trl import DPOTrainer, DPOConfig</code></td>
+              <td><code>from mlx_tune import DPOTrainer, DPOConfig</code></td>
+            </tr>
+            <tr>
+              <td><code>from trl import ORPOTrainer, ORPOConfig</code></td>
+              <td><code>from mlx_tune import ORPOTrainer, ORPOConfig</code></td>
+            </tr>
+            <tr>
+              <td><code>from trl import GRPOTrainer, GRPOConfig</code></td>
+              <td><code>from mlx_tune import GRPOTrainer, GRPOConfig</code></td>
+            </tr>
+            <tr>
+              <td><code>from unsloth import FastVisionModel</code></td>
+              <td><code>from mlx_tune import FastVisionModel</code></td>
+            </tr>
+            <tr>
+              <td><code>from unsloth.trainer import UnslothVisionDataCollator</code></td>
+              <td><code>from mlx_tune import UnslothVisionDataCollator</code></td>
+            </tr>
+            <tr>
+              <td><code>from unsloth import get_chat_template</code></td>
+              <td><code>from mlx_tune import get_chat_template</code></td>
+            </tr>
+            <tr>
+              <td><code>from unsloth import train_on_responses_only</code></td>
+              <td><code>from mlx_tune import train_on_responses_only</code></td>
+            </tr>
+            <tr>
+              <td><code>from unsloth import to_sharegpt</code></td>
+              <td><code>from mlx_tune import to_sharegpt</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ===== Model Names ===== -->
+      <section id="models">
+        <div class="section-label">Model Names</div>
+        <h2 style="margin-top: 0;">HuggingFace model mapping</h2>
+        <p>Unsloth uses models from the <code>unsloth/</code> org on HuggingFace. MLX-Tune uses pre-converted models from the <code>mlx-community/</code> org, which are optimized for Apple&rsquo;s MLX framework.</p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Unsloth Model</th>
+              <th>MLX-Tune Equivalent</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>unsloth/Meta-Llama-3.1-8B-bnb-4bit</code></td>
+              <td><code>mlx-community/Llama-3.2-8B-Instruct-4bit</code></td>
+            </tr>
+            <tr>
+              <td><code>unsloth/Qwen2.5-7B-bnb-4bit</code></td>
+              <td><code>mlx-community/Qwen2.5-7B-Instruct-4bit</code></td>
+            </tr>
+            <tr>
+              <td><code>unsloth/gemma-2-9b-it-bnb-4bit</code></td>
+              <td><code>mlx-community/gemma-2-9b-it-4bit</code></td>
+            </tr>
+            <tr>
+              <td><code>unsloth/Phi-4-bnb-4bit</code></td>
+              <td><code>mlx-community/Phi-4-4bit</code></td>
+            </tr>
+            <tr>
+              <td><code>unsloth/mistral-7b-v0.3-bnb-4bit</code></td>
+              <td><code>mlx-community/Mistral-7B-Instruct-v0.3-4bit</code></td>
+            </tr>
+            <tr>
+              <td><code>Qwen/Qwen3.5-0.8B</code></td>
+              <td><code>mlx-community/Qwen3.5-0.8B-bf16</code></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="callout">
+          <div class="callout-title">Tip</div>
+          <p>Find MLX models at <a href="https://huggingface.co/mlx-community" target="_blank" rel="noopener">huggingface.co/mlx-community</a>. Most popular models are available in 4-bit and 8-bit quantizations.</p>
+        </div>
+      </section>
+
+      <!-- ===== Config Differences ===== -->
+      <section id="config">
+        <div class="section-label">Config Differences</div>
+        <h2 style="margin-top: 0;">What changes in training config</h2>
+        <p>Most parameters are identical. A few CUDA-specific options are either replaced or no longer needed.</p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Parameter</th>
+              <th>Unsloth</th>
+              <th>MLX-Tune</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>per_device_train_batch_size</code></td>
+              <td>Same</td>
+              <td>Same</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td><code>gradient_accumulation_steps</code></td>
+              <td>Same</td>
+              <td>Same</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td><code>learning_rate</code></td>
+              <td>Same</td>
+              <td>Same</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td><code>max_steps</code></td>
+              <td>Same</td>
+              <td>Same</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td><code>optim</code></td>
+              <td><code>"adamw_8bit"</code></td>
+              <td><code>"adam"</code></td>
+              <td>MLX uses standard Adam</td>
+            </tr>
+            <tr>
+              <td><code>fp16</code> / <code>bf16</code></td>
+              <td><code>True</code></td>
+              <td>Not needed</td>
+              <td>MLX handles precision automatically</td>
+            </tr>
+            <tr>
+              <td><code>device_map</code></td>
+              <td><code>"auto"</code></td>
+              <td>Not needed</td>
+              <td>No device mapping on Apple Silicon</td>
+            </tr>
+            <tr>
+              <td><code>dataset_num_proc</code></td>
+              <td><code>2</code></td>
+              <td>Not needed</td>
+              <td>Single-process on Mac</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ===== Real Notebook Diff ===== -->
+      <section id="real-diff">
+        <div class="section-label">Real Example</div>
+        <h2 style="margin-top: 0;">Actual Unsloth notebook &rarr; MLX-Tune</h2>
+        <p>Here&rsquo;s Unsloth&rsquo;s <a href="https://colab.research.google.com/github/unslothai/notebooks/blob/main/nb/Qwen3_5_(0_8B)_Vision.ipynb" target="_blank">Qwen3.5 Vision notebook</a> converted to MLX-Tune. Only the highlighted lines change.</p>
+
+        <div class="diff-viewer">
+          <div class="diff-header">
+            <span class="diff-file">qwen35_vision_finetuning.py</span>
+            <span>Unsloth &rarr; MLX-Tune changes</span>
+          </div>
+          <div class="diff-body">
+            <div class="diff-separator">@@ Imports @@</div>
+            <div class="diff-line diff-remove"><span class="diff-line-num"></span><span class="diff-line-content">from unsloth import FastVisionModel</span></div>
+            <div class="diff-line diff-remove"><span class="diff-line-num"></span><span class="diff-line-content">from unsloth.trainer import UnslothVisionDataCollator</span></div>
+            <div class="diff-line diff-remove"><span class="diff-line-num"></span><span class="diff-line-content">from trl import SFTTrainer, SFTConfig</span></div>
+            <div class="diff-line diff-remove"><span class="diff-line-num"></span><span class="diff-line-content">import torch</span></div>
+            <div class="diff-line diff-add"><span class="diff-line-num"></span><span class="diff-line-content">from mlx_tune import FastVisionModel, UnslothVisionDataCollator, VLMSFTTrainer</span></div>
+            <div class="diff-line diff-add"><span class="diff-line-num"></span><span class="diff-line-content">from mlx_tune.vlm import VLMSFTConfig</span></div>
+
+            <div class="diff-separator">@@ Model Loading @@</div>
+            <div class="diff-line diff-context"><span class="diff-line-num"></span><span class="diff-line-content">model, tokenizer = FastVisionModel.from_pretrained(</span></div>
+            <div class="diff-line diff-remove"><span class="diff-line-num"></span><span class="diff-line-content">    "unsloth/Qwen3.5-0.8B",</span></div>
+            <div class="diff-line diff-add"><span class="diff-line-num"></span><span class="diff-line-content">    "mlx-community/Qwen3.5-0.8B-bf16",</span></div>
+            <div class="diff-line diff-context"><span class="diff-line-num"></span><span class="diff-line-content">    load_in_4bit = False,</span></div>
+            <div class="diff-line diff-context"><span class="diff-line-num"></span><span class="diff-line-content">    use_gradient_checkpointing = "unsloth",</span></div>
+            <div class="diff-line diff-context"><span class="diff-line-num"></span><span class="diff-line-content">)</span></div>
+
+            <div class="diff-separator">@@ LoRA Setup &mdash; identical! @@</div>
+            <div class="diff-line diff-context"><span class="diff-line-num"></span><span class="diff-line-content">model = FastVisionModel.get_peft_model(</span></div>
+            <div class="diff-line diff-context"><span class="diff-line-num"></span><span class="diff-line-content">    model,</span></div>
+            <div class="diff-line diff-context"><span class="diff-line-num"></span><span class="diff-line-content">    finetune_vision_layers     = True,</span></div>
+            <div class="diff-line diff-context"><span class="diff-line-num"></span><span class="diff-line-content">    finetune_language_layers   = True,</span></div>
+            <div class="diff-line diff-context"><span class="diff-line-num"></span><span class="diff-line-content">    r = 16, lora_alpha = 16,</span></div>
+            <div class="diff-line diff-context"><span class="diff-line-num"></span><span class="diff-line-content">)</span></div>
+
+            <div class="diff-separator">@@ Dataset &mdash; identical! @@</div>
+            <div class="diff-line diff-context"><span class="diff-line-num"></span><span class="diff-line-content">dataset = load_dataset("unsloth/LaTeX_OCR", split="train")</span></div>
+            <div class="diff-line diff-context"><span class="diff-line-num"></span><span class="diff-line-content">converted_dataset = [convert_to_conversation(s) for s in dataset]</span></div>
+
+            <div class="diff-separator">@@ Training @@</div>
+            <div class="diff-line diff-context"><span class="diff-line-num"></span><span class="diff-line-content">FastVisionModel.for_training(model)</span></div>
+            <div class="diff-line diff-remove"><span class="diff-line-num"></span><span class="diff-line-content">trainer = SFTTrainer(</span></div>
+            <div class="diff-line diff-add"><span class="diff-line-num"></span><span class="diff-line-content">trainer = VLMSFTTrainer(</span></div>
+            <div class="diff-line diff-context"><span class="diff-line-num"></span><span class="diff-line-content">    model = model,</span></div>
+            <div class="diff-line diff-context"><span class="diff-line-num"></span><span class="diff-line-content">    tokenizer = tokenizer,</span></div>
+            <div class="diff-line diff-context"><span class="diff-line-num"></span><span class="diff-line-content">    data_collator = UnslothVisionDataCollator(model, tokenizer),</span></div>
+            <div class="diff-line diff-context"><span class="diff-line-num"></span><span class="diff-line-content">    train_dataset = converted_dataset,</span></div>
+            <div class="diff-line diff-remove"><span class="diff-line-num"></span><span class="diff-line-content">    args = SFTConfig(</span></div>
+            <div class="diff-line diff-add"><span class="diff-line-num"></span><span class="diff-line-content">    args = VLMSFTConfig(</span></div>
+            <div class="diff-line diff-remove"><span class="diff-line-num"></span><span class="diff-line-content">        per_device_train_batch_size = 2,</span></div>
+            <div class="diff-line diff-add"><span class="diff-line-num"></span><span class="diff-line-content">        per_device_train_batch_size = 1,  # Must be 1 for VLM</span></div>
+            <div class="diff-line diff-context"><span class="diff-line-num"></span><span class="diff-line-content">        gradient_accumulation_steps = 4,</span></div>
+            <div class="diff-line diff-context"><span class="diff-line-num"></span><span class="diff-line-content">        warmup_steps = 5,</span></div>
+            <div class="diff-line diff-context"><span class="diff-line-num"></span><span class="diff-line-content">        max_steps = 30,</span></div>
+            <div class="diff-line diff-context"><span class="diff-line-num"></span><span class="diff-line-content">        learning_rate = 2e-4,</span></div>
+            <div class="diff-line diff-remove"><span class="diff-line-num"></span><span class="diff-line-content">        optim = "adamw_8bit",</span></div>
+            <div class="diff-line diff-add"><span class="diff-line-num"></span><span class="diff-line-content">        optim = "adam",</span></div>
+            <div class="diff-line diff-context"><span class="diff-line-num"></span><span class="diff-line-content">        weight_decay = 0.001,</span></div>
+            <div class="diff-line diff-context"><span class="diff-line-num"></span><span class="diff-line-content">        lr_scheduler_type = "linear",</span></div>
+            <div class="diff-line diff-context"><span class="diff-line-num"></span><span class="diff-line-content">        seed = 3407,</span></div>
+            <div class="diff-line diff-context"><span class="diff-line-num"></span><span class="diff-line-content">        output_dir = "outputs",</span></div>
+            <div class="diff-line diff-context"><span class="diff-line-num"></span><span class="diff-line-content">    ),</span></div>
+            <div class="diff-line diff-context"><span class="diff-line-num"></span><span class="diff-line-content">)</span></div>
+            <div class="diff-line diff-context"><span class="diff-line-num"></span><span class="diff-line-content">trainer.train()</span></div>
+
+            <div class="diff-separator">@@ Saving &mdash; identical! @@</div>
+            <div class="diff-line diff-context"><span class="diff-line-num"></span><span class="diff-line-content">model.save_pretrained("qwen_lora")</span></div>
+          </div>
+        </div>
+
+        <div class="callout">
+          <div class="callout-title">Summary</div>
+          <p>Out of ~40 lines of training code, only <strong>8 lines</strong> change: imports (2), model name (1), trainer class (1), config class (1), batch size (1), optimizer (1), and removing <code>torch</code> import (1). Everything else &mdash; LoRA config, dataset prep, data collator, save &mdash; is identical.</p>
+        </div>
+      </section>
+
+      <!-- ===== Side-by-Side Example ===== -->
+      <section id="side-by-side">
+        <div class="section-label">Side-by-Side Example</div>
+        <h2 style="margin-top: 0;">Complete SFT script comparison</h2>
+        <p>A full training script, side by side. The highlighted lines are the only differences.</p>
+
+        <div class="code-compare">
+          <div class="code-compare-panel">
+            <div class="code-compare-label">Unsloth (CUDA)</div>
+            <div class="code-block-wrapper">
+              <button class="copy-btn">Copy</button>
+              <pre><code class="language-python">from unsloth import FastLanguageModel
+from trl import SFTTrainer, SFTConfig
+from datasets import load_dataset
+
+model, tokenizer = FastLanguageModel.from_pretrained(
+    "unsloth/Meta-Llama-3.1-8B-bnb-4bit",
+    max_seq_length=2048,
+    load_in_4bit=True,
+)
+
+model = FastLanguageModel.get_peft_model(
+    model, r=16, lora_alpha=16,
+    target_modules=["q_proj", "k_proj",
+                     "v_proj", "o_proj"],
+)
+
+dataset = load_dataset(
+    "yahma/alpaca-cleaned", split="train"
+)
+
+trainer = SFTTrainer(
+    model=model,
+    train_dataset=dataset,
+    tokenizer=tokenizer,
+    args=SFTConfig(
+        output_dir="outputs",
+        per_device_train_batch_size=2,
+        learning_rate=2e-4,
+        max_steps=100,
+        optim="adamw_8bit",
+        fp16=not is_bfloat16_supported(),
+        bf16=is_bfloat16_supported(),
+    ),
+)
+trainer.train()
+model.save_pretrained("lora_model")</code></pre>
+            </div>
+          </div>
+          <div class="code-compare-panel">
+            <div class="code-compare-label">MLX-Tune (Apple Silicon)</div>
+            <div class="code-block-wrapper">
+              <button class="copy-btn">Copy</button>
+              <pre><code class="language-python">from mlx_tune import FastLanguageModel
+from mlx_tune import SFTTrainer, SFTConfig
+from datasets import load_dataset
+
+model, tokenizer = FastLanguageModel.from_pretrained(
+    "mlx-community/Llama-3.2-8B-Instruct-4bit",
+    max_seq_length=2048,
+    load_in_4bit=True,
+)
+
+model = FastLanguageModel.get_peft_model(
+    model, r=16, lora_alpha=16,
+    target_modules=["q_proj", "k_proj",
+                     "v_proj", "o_proj"],
+)
+
+dataset = load_dataset(
+    "yahma/alpaca-cleaned", split="train"
+)
+
+trainer = SFTTrainer(
+    model=model,
+    train_dataset=dataset,
+    tokenizer=tokenizer,
+    args=SFTConfig(
+        output_dir="outputs",
+        per_device_train_batch_size=2,
+        learning_rate=2e-4,
+        max_steps=100,
+        optim="adam",
+    ),
+)
+trainer.train()
+model.save_pretrained("lora_model")</code></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== Vision Models ===== -->
+      <section id="vlm">
+        <div class="section-label">Vision Models</div>
+        <h2 style="margin-top: 0;">VLM fine-tuning translation</h2>
+        <p>Vision-Language Model fine-tuning follows the same pattern, with a few MLX-Tune-specific additions.</p>
+
+        <h3>Import changes</h3>
+        <div class="code-compare">
+          <div class="code-compare-panel">
+            <div class="code-compare-label">Unsloth (CUDA)</div>
+            <div class="code-block-wrapper">
+              <button class="copy-btn">Copy</button>
+              <pre><code class="language-python">from unsloth import FastVisionModel
+from unsloth.trainer import UnslothVisionDataCollator
+from trl import SFTTrainer, SFTConfig</code></pre>
+            </div>
+          </div>
+          <div class="code-compare-panel">
+            <div class="code-compare-label">MLX-Tune (Apple Silicon)</div>
+            <div class="code-block-wrapper">
+              <button class="copy-btn">Copy</button>
+              <pre><code class="language-python">from mlx_tune import FastVisionModel
+from mlx_tune import UnslothVisionDataCollator
+from mlx_tune.vlm import VLMSFTTrainer, VLMSFTConfig</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <h3>Key differences for VLM</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Aspect</th>
+              <th>Unsloth</th>
+              <th>MLX-Tune</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Trainer class</strong></td>
+              <td><code>SFTTrainer</code></td>
+              <td><code>VLMSFTTrainer</code></td>
+            </tr>
+            <tr>
+              <td><strong>Config class</strong></td>
+              <td><code>SFTConfig</code></td>
+              <td><code>VLMSFTConfig</code></td>
+            </tr>
+            <tr>
+              <td><strong>Batch size</strong></td>
+              <td>Flexible</td>
+              <td>Must be <strong>1</strong></td>
+            </tr>
+            <tr>
+              <td><strong>Data collator</strong></td>
+              <td><code>UnslothVisionDataCollator</code></td>
+              <td><code>UnslothVisionDataCollator</code></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="callout">
+          <div class="callout-title">Important</div>
+          <p>VLM training in MLX-Tune <strong>must</strong> use <code>per_device_train_batch_size=1</code>. Images produce variable numbers of vision tokens, so batching is not supported. Use <code>gradient_accumulation_steps</code> to simulate larger effective batch sizes.</p>
+        </div>
+      </section>
+
+      <!-- ===== What Stays the Same ===== -->
+      <section id="same">
+        <div class="section-label">What Stays the Same</div>
+        <h2 style="margin-top: 0;">Everything else is identical</h2>
+        <p>The vast majority of your Unsloth code works without any changes.</p>
+
+        <ul>
+          <li><strong><code>get_peft_model()</code> parameters</strong> &mdash; <code>r</code>, <code>lora_alpha</code>, <code>target_modules</code>, <code>lora_dropout</code>, and all other LoRA settings</li>
+          <li><strong>Dataset formats</strong> &mdash; Alpaca, ShareGPT, and ChatML are auto-detected and converted</li>
+          <li><strong>Chat templates</strong> &mdash; <code>get_chat_template()</code> with the same template names (<code>llama-3</code>, <code>qwen2.5</code>, <code>gemma</code>, <code>phi-4</code>, <code>mistral</code>, etc.)</li>
+          <li><strong>Response-only training</strong> &mdash; <code>train_on_responses_only()</code> with the same <code>instruction_part</code> and <code>response_part</code> parameters</li>
+          <li><strong>Save methods</strong> &mdash; <code>save_pretrained()</code>, <code>save_pretrained_merged()</code>, and <code>save_pretrained_gguf()</code></li>
+          <li><strong>LoRA configuration</strong> &mdash; Adapter loading and saving is fully compatible</li>
+          <li><strong>Dataset utilities</strong> &mdash; <code>to_sharegpt()</code>, <code>apply_column_mapping()</code>, and <code>HFDatasetConfig</code></li>
+          <li><strong>Inference</strong> &mdash; <code>FastLanguageModel.for_inference(model)</code> and streaming generation</li>
+        </ul>
+
+        <div class="callout">
+          <div class="callout-title">The Bottom Line</div>
+          <p>If you can fine-tune with Unsloth, you can fine-tune with MLX-Tune. Change the imports, swap the model name, drop the CUDA-specific config&mdash;and you&rsquo;re training on your Mac.</p>
+        </div>
+      </section>
+
+      <!-- ===== Footer ===== -->
+      <footer class="footer">
+        <p>Community project, not affiliated with Unsloth AI or Apple.</p>
+        <p><a href="https://github.com/ARahim3/mlx-tune">GitHub</a> &middot; <a href="https://pypi.org/project/mlx-tune/">PyPI</a> &middot; Apache 2.0 License</p>
+      </footer>
+
+    </main>
+  </div>
+
+  <!-- ===== Scripts ===== -->
+  <script src="assets/js/prism.min.js"></script>
+  <script src="assets/js/prism-python.min.js"></script>
+  <script src="assets/js/prism-bash.min.js"></script>
+  <script src="assets/js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API Reference &mdash; MLX-Tune Docs</title>
+  <meta name="description" content="Complete API reference for MLX-Tune: FastLanguageModel, SFTTrainer, RL trainers, VLM, chat templates, and more.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230d1117'/><text x='50%25' y='73%25' text-anchor='middle' font-family='system-ui,-apple-system,sans-serif' font-weight='900' font-size='22' fill='%23e6edf3'>m</text></svg>">
+  <meta property="og:title" content="API Reference - MLX-Tune Docs">
+  <meta property="og:image" content="https://arahim3.github.io/mlx-tune/assets/img/og-image.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/prism-dark.css">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+  <nav class="top-nav">
+    <div class="nav-inner">
+      <a href="index.html" class="nav-logo"><img src="assets/img/logo.png" alt="mlx-tune"></a>
+      <ul class="nav-links">
+        <li><a href="index.html">Getting Started</a></li>
+        <li><a href="workflow.html">Workflow</a></li>
+        <li><a href="examples.html">Examples</a></li>
+        <li><a href="api.html">API</a></li>
+        <li><a href="troubleshooting.html">Troubleshooting</a></li>
+      </ul>
+      <div class="nav-right">
+        <a href="https://github.com/ARahim3/mlx-tune" class="github-link" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" fill="currentColor"/></svg></a>
+        <button class="theme-toggle" aria-label="Toggle theme"></button>
+        <button class="mobile-toggle" aria-label="Menu">&#9776;</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+    <aside class="sidebar">
+      <div class="sidebar-title">Modules</div>
+      <ul class="sidebar-nav">
+        <li><a href="#core">Core Model</a></li>
+        <li class="sub-item"><a href="#FastLanguageModel">FastLanguageModel</a></li>
+        <li><a href="#sft">SFT Training</a></li>
+        <li class="sub-item"><a href="#SFTTrainer">SFTTrainer</a></li>
+        <li class="sub-item"><a href="#SFTConfig">SFTConfig</a></li>
+        <li><a href="#rl">RL Trainers</a></li>
+        <li class="sub-item"><a href="#DPOTrainer">DPOTrainer</a></li>
+        <li class="sub-item"><a href="#GRPOTrainer">GRPOTrainer</a></li>
+        <li><a href="#vlm">Vision Models</a></li>
+        <li class="sub-item"><a href="#FastVisionModel">FastVisionModel</a></li>
+        <li class="sub-item"><a href="#VLMSFTTrainer">VLMSFTTrainer</a></li>
+        <li><a href="#chat-templates">Chat Templates</a></li>
+        <li class="sub-item"><a href="#get_chat_template">get_chat_template</a></li>
+        <li class="sub-item"><a href="#train_on_responses_only">train_on_responses_only</a></li>
+        <li><a href="#losses">Loss Functions</a></li>
+        <li><a href="#utilities">Utilities</a></li>
+      </ul>
+    </aside>
+
+    <main class="content">
+      <h1>API Reference</h1>
+      <p>All public APIs exported from <code>mlx_tune</code>. Import everything from the top-level package.</p>
+      <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">from mlx_tune import FastLanguageModel, SFTTrainer, SFTConfig
+# ... or any other export listed below</code></pre>
+      </div>
+
+      <!-- ===== Core Model ===== -->
+      <div class="api-module" id="core">
+        <div class="api-module-header">
+          <h2 style="margin:0;">Core Model</h2>
+          <span class="module-path">mlx_tune.model</span>
+        </div>
+
+        <div class="api-entry" id="FastLanguageModel">
+          <h3>FastLanguageModel</h3>
+          <p>Main entry point for loading and configuring language models. Mirrors Unsloth&rsquo;s <code>FastLanguageModel</code> API.</p>
+
+          <h4>FastLanguageModel.from_pretrained()</h4>
+          <div class="api-signature">
+            <span class="api-name">FastLanguageModel.from_pretrained</span>(<span class="api-param">model_name</span>, <span class="api-param">max_seq_length</span><span class="api-default">=None</span>, <span class="api-param">load_in_4bit</span><span class="api-default">=False</span>, <span class="api-param">load_in_8bit</span><span class="api-default">=False</span>, <span class="api-param">use_gradient_checkpointing</span><span class="api-default">="unsloth"</span>, ...) &rarr; <span class="api-param">Tuple[MLXModelWrapper, Tokenizer]</span>
+          </div>
+          <p>Load a pretrained language model from HuggingFace.</p>
+          <table class="api-params">
+            <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>model_name</code></td><td>str</td><td>HuggingFace model ID (e.g., <code>"mlx-community/Llama-3.2-1B-Instruct-4bit"</code>) or local path</td></tr>
+              <tr><td><code>max_seq_length</code></td><td>int, optional</td><td>Maximum sequence length for training/inference</td></tr>
+              <tr><td><code>load_in_4bit</code></td><td>bool</td><td>Load model with 4-bit quantization (QLoRA)</td></tr>
+              <tr><td><code>load_in_8bit</code></td><td>bool</td><td>Load model with 8-bit quantization</td></tr>
+            </tbody>
+          </table>
+
+          <h4>FastLanguageModel.get_peft_model()</h4>
+          <div class="api-signature">
+            <span class="api-name">FastLanguageModel.get_peft_model</span>(<span class="api-param">model</span>, <span class="api-param">r</span><span class="api-default">=16</span>, <span class="api-param">target_modules</span><span class="api-default">=None</span>, <span class="api-param">lora_alpha</span><span class="api-default">=16</span>, <span class="api-param">lora_dropout</span><span class="api-default">=0.0</span>, <span class="api-param">bias</span><span class="api-default">="none"</span>, <span class="api-param">use_rslora</span><span class="api-default">=False</span>, <span class="api-param">random_state</span><span class="api-default">=3407</span>, ...) &rarr; <span class="api-param">MLXModelWrapper</span>
+          </div>
+          <p>Add LoRA adapters to the model for parameter-efficient fine-tuning.</p>
+          <table class="api-params">
+            <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>model</code></td><td>MLXModelWrapper</td><td>Model from <code>from_pretrained()</code></td></tr>
+              <tr><td><code>r</code></td><td>int</td><td>LoRA rank (higher = more parameters, better quality)</td></tr>
+              <tr><td><code>target_modules</code></td><td>list[str], optional</td><td>Modules to apply LoRA to. Default: <code>["q_proj", "k_proj", "v_proj", "o_proj"]</code></td></tr>
+              <tr><td><code>lora_alpha</code></td><td>int</td><td>LoRA scaling factor. Recommended: equal to <code>r</code></td></tr>
+              <tr><td><code>lora_dropout</code></td><td>float</td><td>Dropout for LoRA layers</td></tr>
+            </tbody>
+          </table>
+
+          <h4>FastLanguageModel.for_inference()</h4>
+          <div class="api-signature">
+            <span class="api-name">FastLanguageModel.for_inference</span>(<span class="api-param">model</span>, <span class="api-param">use_cache</span><span class="api-default">=True</span>) &rarr; <span class="api-param">MLXModelWrapper</span>
+          </div>
+          <p>Enable inference mode: activates KV caching, disables dropout. <strong>Always call before generating.</strong></p>
+        </div>
+
+        <div class="api-entry">
+          <h3>MLXModelWrapper</h3>
+          <p>Internal wrapper providing Unsloth-compatible methods on MLX models. Returned by <code>FastLanguageModel.from_pretrained()</code>.</p>
+
+          <h4>Key Methods</h4>
+          <div class="api-signature"><span class="api-name">model.save_pretrained</span>(<span class="api-param">output_dir</span>) &mdash; Save LoRA adapters only</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">model.save_pretrained_merged</span>(<span class="api-param">output_dir</span>, <span class="api-param">tokenizer</span>) &mdash; Save full merged model</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">model.save_pretrained_gguf</span>(<span class="api-param">output_dir</span>, <span class="api-param">tokenizer</span>, <span class="api-param">dequantize</span><span class="api-default">=False</span>) &mdash; Export to GGUF format</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">model.generate</span>(<span class="api-param">prompt</span>, <span class="api-param">max_tokens</span><span class="api-default">=256</span>, <span class="api-param">temperature</span><span class="api-default">=0.7</span>, <span class="api-param">min_p</span><span class="api-default">=None</span>, ...) &mdash; Generate text</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">model.stream_generate</span>(<span class="api-param">prompt</span>, ...) &mdash; Stream text token by token</div>
+        </div>
+      </div>
+
+      <!-- ===== SFT Training ===== -->
+      <div class="api-module" id="sft">
+        <div class="api-module-header">
+          <h2 style="margin:0;">SFT Training</h2>
+          <span class="module-path">mlx_tune.sft_trainer</span>
+        </div>
+
+        <div class="api-entry" id="SFTTrainer">
+          <h3>SFTTrainer</h3>
+          <div class="api-signature">
+            <span class="api-name">SFTTrainer</span>(<span class="api-param">model</span>, <span class="api-param">train_dataset</span>, <span class="api-param">tokenizer</span><span class="api-default">=None</span>, <span class="api-param">eval_dataset</span><span class="api-default">=None</span>, <span class="api-param">args</span><span class="api-default">=None</span>, ...)
+          </div>
+          <p>Supervised fine-tuning trainer. API-compatible with TRL&rsquo;s SFTTrainer.</p>
+          <table class="api-params">
+            <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>model</code></td><td>MLXModelWrapper</td><td>Model with LoRA adapters configured</td></tr>
+              <tr><td><code>train_dataset</code></td><td>Dataset</td><td>HuggingFace dataset or list of dicts</td></tr>
+              <tr><td><code>tokenizer</code></td><td>Tokenizer</td><td>Tokenizer from <code>from_pretrained()</code></td></tr>
+              <tr><td><code>args</code></td><td>SFTConfig</td><td>Training configuration</td></tr>
+            </tbody>
+          </table>
+          <div class="api-signature" style="margin-top:12px;"><span class="api-name">trainer.train</span>() &mdash; Start training. Returns training statistics.</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">trainer.save_model</span>(<span class="api-param">output_dir</span>) &mdash; Save the trained model.</div>
+        </div>
+
+        <div class="api-entry" id="SFTConfig">
+          <h3>SFTConfig</h3>
+          <div class="api-signature">
+            <span class="api-name">SFTConfig</span>(<span class="api-param">output_dir</span><span class="api-default">="outputs"</span>, <span class="api-param">per_device_train_batch_size</span><span class="api-default">=2</span>, <span class="api-param">gradient_accumulation_steps</span><span class="api-default">=4</span>, <span class="api-param">learning_rate</span><span class="api-default">=2e-4</span>, <span class="api-param">lr_scheduler_type</span><span class="api-default">="linear"</span>, <span class="api-param">warmup_steps</span><span class="api-default">=5</span>, <span class="api-param">num_train_epochs</span><span class="api-default">=1</span>, <span class="api-param">max_steps</span><span class="api-default">=-1</span>, <span class="api-param">logging_steps</span><span class="api-default">=1</span>, <span class="api-param">save_steps</span><span class="api-default">=500</span>, <span class="api-param">max_seq_length</span><span class="api-default">=2048</span>, <span class="api-param">optim</span><span class="api-default">="adam"</span>, <span class="api-param">weight_decay</span><span class="api-default">=0.01</span>, <span class="api-param">seed</span><span class="api-default">=3407</span>, <span class="api-param">report_to</span><span class="api-default">="none"</span>, ...)
+          </div>
+          <p>Training configuration. Compatible with TRL&rsquo;s SFTConfig parameters.</p>
+          <table class="api-params">
+            <thead><tr><th>Parameter</th><th>Default</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>output_dir</code></td><td><code>"outputs"</code></td><td>Directory for checkpoints and logs</td></tr>
+              <tr><td><code>per_device_train_batch_size</code></td><td><code>2</code></td><td>Batch size per device</td></tr>
+              <tr><td><code>gradient_accumulation_steps</code></td><td><code>4</code></td><td>Number of gradient accumulation steps</td></tr>
+              <tr><td><code>learning_rate</code></td><td><code>2e-4</code></td><td>Peak learning rate</td></tr>
+              <tr><td><code>max_steps</code></td><td><code>-1</code></td><td>Total training steps (-1 = use epochs)</td></tr>
+              <tr><td><code>max_seq_length</code></td><td><code>2048</code></td><td>Maximum sequence length</td></tr>
+              <tr><td><code>optim</code></td><td><code>"adam"</code></td><td>Optimizer (use <code>"adam"</code> for MLX)</td></tr>
+              <tr><td><code>warmup_steps</code></td><td><code>5</code></td><td>Linear warmup steps</td></tr>
+              <tr><td><code>lr_scheduler_type</code></td><td><code>"linear"</code></td><td>LR scheduler: linear, cosine, constant</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ===== RL Trainers ===== -->
+      <div class="api-module" id="rl">
+        <div class="api-module-header">
+          <h2 style="margin:0;">RL Trainers</h2>
+          <span class="module-path">mlx_tune.rl_trainers</span>
+        </div>
+
+        <div class="api-entry" id="DPOTrainer">
+          <h3>DPOTrainer</h3>
+          <div class="api-signature">
+            <span class="api-name">DPOTrainer</span>(<span class="api-param">model</span>, <span class="api-param">train_dataset</span>, <span class="api-param">args</span><span class="api-default">=None</span>, <span class="api-param">tokenizer</span><span class="api-default">=None</span>, ...)
+          </div>
+          <p>Direct Preference Optimization trainer. Uses proper DPO loss with log-probability computation over chosen/rejected pairs.</p>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">DPOConfig</span>(<span class="api-param">output_dir</span>, <span class="api-param">beta</span><span class="api-default">=0.1</span>, <span class="api-param">max_steps</span><span class="api-default">=-1</span>, <span class="api-param">learning_rate</span><span class="api-default">=5e-5</span>, ...)</div>
+        </div>
+
+        <div class="api-entry">
+          <h3>ORPOTrainer</h3>
+          <div class="api-signature">
+            <span class="api-name">ORPOTrainer</span>(<span class="api-param">model</span>, <span class="api-param">train_dataset</span>, <span class="api-param">args</span><span class="api-default">=None</span>, ...)
+          </div>
+          <p>Odds Ratio Preference Optimization. Combines SFT loss with odds-ratio preference alignment.</p>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">ORPOConfig</span>(<span class="api-param">output_dir</span>, <span class="api-param">lambda_orpo</span><span class="api-default">=1.0</span>, ...)</div>
+        </div>
+
+        <div class="api-entry" id="GRPOTrainer">
+          <h3>GRPOTrainer</h3>
+          <div class="api-signature">
+            <span class="api-name">GRPOTrainer</span>(<span class="api-param">model</span>, <span class="api-param">train_dataset</span>, <span class="api-param">args</span><span class="api-default">=None</span>, <span class="api-param">reward_fn</span><span class="api-default">=None</span>, ...)
+          </div>
+          <p>Group Relative Policy Optimization (DeepSeek R1 style). Generates multiple completions per prompt and optimizes based on relative rewards.</p>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">GRPOConfig</span>(<span class="api-param">output_dir</span>, <span class="api-param">num_generations</span><span class="api-default">=4</span>, <span class="api-param">kl_coeff</span><span class="api-default">=0.1</span>, ...)</div>
+        </div>
+
+        <div class="api-entry">
+          <h3>KTOTrainer &amp; SimPOTrainer</h3>
+          <div class="api-signature"><span class="api-name">KTOTrainer</span>(<span class="api-param">model</span>, <span class="api-param">train_dataset</span>, <span class="api-param">args</span><span class="api-default">=None</span>, ...) &mdash; Kahneman-Tversky Optimization</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">SimPOTrainer</span>(<span class="api-param">model</span>, <span class="api-param">train_dataset</span>, <span class="api-param">args</span><span class="api-default">=None</span>, ...) &mdash; Simple Preference Optimization</div>
+        </div>
+
+        <div class="api-entry">
+          <h3>Utilities</h3>
+          <div class="api-signature"><span class="api-name">prepare_preference_dataset</span>(<span class="api-param">dataset</span>, ...) &rarr; dataset</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">create_reward_function</span>(<span class="api-param">reward_type</span><span class="api-default">="simple"</span>) &rarr; Callable</div>
+        </div>
+      </div>
+
+      <!-- ===== Vision Models ===== -->
+      <div class="api-module" id="vlm">
+        <div class="api-module-header">
+          <h2 style="margin:0;">Vision Models</h2>
+          <span class="module-path">mlx_tune.vlm</span>
+        </div>
+
+        <div class="api-entry" id="FastVisionModel">
+          <h3>FastVisionModel</h3>
+          <p>Vision-Language Model API. Mirrors Unsloth&rsquo;s <code>FastVisionModel</code>.</p>
+
+          <h4>FastVisionModel.from_pretrained()</h4>
+          <div class="api-signature">
+            <span class="api-name">FastVisionModel.from_pretrained</span>(<span class="api-param">model_name</span>, <span class="api-param">max_seq_length</span><span class="api-default">=None</span>, <span class="api-param">load_in_4bit</span><span class="api-default">=False</span>, ...) &rarr; <span class="api-param">Tuple[VLMModelWrapper, Processor]</span>
+          </div>
+          <p>Load a vision-language model. Returns model wrapper and processor (not tokenizer).</p>
+
+          <h4>FastVisionModel.get_peft_model()</h4>
+          <div class="api-signature">
+            <span class="api-name">FastVisionModel.get_peft_model</span>(<span class="api-param">model</span>, <span class="api-param">finetune_vision_layers</span><span class="api-default">=True</span>, <span class="api-param">finetune_language_layers</span><span class="api-default">=True</span>, <span class="api-param">finetune_attention_modules</span><span class="api-default">=True</span>, <span class="api-param">finetune_mlp_modules</span><span class="api-default">=True</span>, <span class="api-param">r</span><span class="api-default">=16</span>, <span class="api-param">lora_alpha</span><span class="api-default">=16</span>, ...) &rarr; <span class="api-param">VLMModelWrapper</span>
+          </div>
+          <p>Add LoRA adapters to vision and/or language components.</p>
+          <table class="api-params">
+            <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>finetune_vision_layers</code></td><td>bool</td><td>Apply LoRA to vision encoder</td></tr>
+              <tr><td><code>finetune_language_layers</code></td><td>bool</td><td>Apply LoRA to language model</td></tr>
+              <tr><td><code>finetune_attention_modules</code></td><td>bool</td><td>Apply LoRA to attention modules</td></tr>
+              <tr><td><code>finetune_mlp_modules</code></td><td>bool</td><td>Apply LoRA to MLP modules</td></tr>
+            </tbody>
+          </table>
+
+          <div class="api-signature" style="margin-top:12px;"><span class="api-name">FastVisionModel.for_training</span>(<span class="api-param">model</span>) &mdash; Enable training mode</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">FastVisionModel.for_inference</span>(<span class="api-param">model</span>) &mdash; Enable inference mode</div>
+        </div>
+
+        <div class="api-entry" id="VLMSFTTrainer">
+          <h3>VLMSFTTrainer</h3>
+          <div class="api-signature">
+            <span class="api-name">VLMSFTTrainer</span>(<span class="api-param">model</span>, <span class="api-param">train_dataset</span>, <span class="api-param">tokenizer</span>, <span class="api-param">data_collator</span><span class="api-default">=None</span>, <span class="api-param">args</span><span class="api-default">=None</span>, ...)
+          </div>
+          <p>Vision-Language model trainer. Batch size is forced to 1 (images produce variable token counts).</p>
+
+          <h3 style="margin-top:24px;">VLMSFTConfig</h3>
+          <div class="api-signature">
+            <span class="api-name">VLMSFTConfig</span>(<span class="api-param">per_device_train_batch_size</span><span class="api-default">=1</span>, <span class="api-param">max_steps</span><span class="api-default">=30</span>, <span class="api-param">learning_rate</span><span class="api-default">=2e-4</span>, ...) &mdash; VLM-specific training config
+          </div>
+
+          <h3 style="margin-top:24px;">UnslothVisionDataCollator</h3>
+          <div class="api-signature">
+            <span class="api-name">UnslothVisionDataCollator</span>(<span class="api-param">model</span>, <span class="api-param">processor</span>) &mdash; Data collator for vision tasks
+          </div>
+          <p>Handles image preprocessing, vision token insertion, and batch preparation for VLM training.</p>
+        </div>
+      </div>
+
+      <!-- ===== Chat Templates ===== -->
+      <div class="api-module" id="chat-templates">
+        <div class="api-module-header">
+          <h2 style="margin:0;">Chat Templates</h2>
+          <span class="module-path">mlx_tune.chat_templates</span>
+        </div>
+
+        <div class="api-entry" id="get_chat_template">
+          <h3>get_chat_template()</h3>
+          <div class="api-signature">
+            <span class="api-name">get_chat_template</span>(<span class="api-param">tokenizer</span>, <span class="api-param">chat_template</span><span class="api-default">="auto"</span>, ...) &rarr; <span class="api-param">Tokenizer</span>
+          </div>
+          <p>Apply a chat template to the tokenizer. Supports 15 model templates.</p>
+          <table class="api-params">
+            <thead><tr><th>Parameter</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>tokenizer</code></td><td>Tokenizer to update</td></tr>
+              <tr><td><code>chat_template</code></td><td>Template name or <code>"auto"</code> for auto-detection. Options: <code>llama-3</code>, <code>llama-2</code>, <code>gemma</code>, <code>qwen-2.5</code>, <code>qwen-3</code>, <code>phi-3</code>, <code>phi-4</code>, <code>mistral-7b</code>, <code>deepseek</code>, <code>command-r</code>, <code>neural-chat</code>, <code>solar</code>, <code>tulu-2</code>, <code>zephyr</code>, <code>alpaca</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="api-entry" id="train_on_responses_only">
+          <h3>train_on_responses_only()</h3>
+          <div class="api-signature">
+            <span class="api-name">train_on_responses_only</span>(<span class="api-param">trainer</span>, <span class="api-param">instruction_part</span>, <span class="api-param">response_part</span>, ...) &rarr; <span class="api-param">Trainer</span>
+          </div>
+          <p>Modify trainer to compute loss only on assistant response tokens (not prompts). Significantly improves training quality.</p>
+        </div>
+
+        <div class="api-entry">
+          <h3>Dataset Utilities</h3>
+          <div class="api-signature"><span class="api-name">to_sharegpt</span>(<span class="api-param">dataset</span>, <span class="api-param">conversation_extension</span><span class="api-default">="auto"</span>, ...) &rarr; dataset &mdash; Merge multi-turn conversations</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">detect_dataset_format</span>(<span class="api-param">sample</span>) &rarr; str &mdash; Returns <code>"alpaca"</code>, <code>"sharegpt"</code>, or <code>"chatml"</code></div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">standardize_sharegpt</span>(<span class="api-param">dataset</span>) &rarr; dataset</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">standardize_sharegpt_enhanced</span>(<span class="api-param">dataset</span>, <span class="api-param">role_mapping</span><span class="api-default">={}</span>, ...) &rarr; dataset</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">convert_to_mlx_format</span>(<span class="api-param">dataset</span>, ...) &rarr; dataset</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">apply_column_mapping</span>(<span class="api-param">dataset</span>, <span class="api-param">column_mapping</span>) &rarr; dataset &mdash; Rename columns</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">infer_column_mapping</span>(<span class="api-param">dataset</span>) &rarr; Dict &mdash; Auto-detect column mapping</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">HFDatasetConfig</span>(<span class="api-param">dataset_name</span>, <span class="api-param">split</span>, ...) &mdash; Structured dataset configuration</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">load_dataset_with_config</span>(<span class="api-param">config</span>) &rarr; dataset</div>
+        </div>
+
+        <div class="api-entry">
+          <h3>Template Helpers</h3>
+          <div class="api-signature"><span class="api-name">list_chat_templates</span>() &rarr; List[str] &mdash; List all available template names</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">get_template_info</span>(<span class="api-param">template_name</span>) &rarr; Dict &mdash; Get template details</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">get_template_for_model</span>(<span class="api-param">model_name</span>) &rarr; str &mdash; Auto-detect template from model name</div>
+        </div>
+
+        <div class="api-entry">
+          <h3>Constants</h3>
+          <div class="api-signature"><span class="api-name">CHAT_TEMPLATES</span> &mdash; Dict of all template definitions (Jinja2)</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">TEMPLATE_ALIASES</span> &mdash; Dict of alias mappings (e.g., <code>"llama3"</code> &rarr; <code>"llama-3"</code>)</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">DEFAULT_SYSTEM_MESSAGES</span> &mdash; Dict of default system prompts per model</div>
+        </div>
+      </div>
+
+      <!-- ===== Loss Functions ===== -->
+      <div class="api-module" id="losses">
+        <div class="api-module-header">
+          <h2 style="margin:0;">Loss Functions</h2>
+          <span class="module-path">mlx_tune.losses</span>
+        </div>
+
+        <div class="api-entry">
+          <p>Low-level loss functions for custom training loops.</p>
+          <div class="api-signature"><span class="api-name">sft_loss</span>(<span class="api-param">logits</span>, <span class="api-param">targets</span>, ...) &rarr; loss</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">dpo_loss</span>(<span class="api-param">chosen_logits</span>, <span class="api-param">rejected_logits</span>, ...) &rarr; loss</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">orpo_loss</span>(<span class="api-param">chosen_logits</span>, <span class="api-param">rejected_logits</span>, ...) &rarr; loss</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">kto_loss</span>(<span class="api-param">generated_logits</span>, ...) &rarr; loss</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">simpo_loss</span>(<span class="api-param">chosen_logits</span>, <span class="api-param">rejected_logits</span>, ...) &rarr; loss</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">grpo_loss</span>(<span class="api-param">completions</span>, <span class="api-param">rewards</span>, ...) &rarr; loss</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">grpo_batch_loss</span>(<span class="api-param">batch_completions</span>, <span class="api-param">batch_rewards</span>, ...) &rarr; loss</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">compute_log_probs</span>(<span class="api-param">logits</span>, <span class="api-param">tokens</span>, ...) &rarr; log_probs</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">compute_log_probs_with_lengths</span>(<span class="api-param">logits</span>, <span class="api-param">tokens</span>, <span class="api-param">lengths</span>, ...) &rarr; log_probs</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">compute_reference_logprobs</span>(<span class="api-param">model</span>, <span class="api-param">tokens</span>, ...) &rarr; logprobs</div>
+        </div>
+      </div>
+
+      <!-- ===== Utilities ===== -->
+      <div class="api-module" id="utilities">
+        <div class="api-module-header">
+          <h2 style="margin:0;">Utilities</h2>
+          <span class="module-path">mlx_tune.trainer</span>
+        </div>
+
+        <div class="api-entry">
+          <div class="api-signature"><span class="api-name">prepare_dataset</span>(<span class="api-param">dataset_name</span><span class="api-default">=None</span>, <span class="api-param">dataset_path</span><span class="api-default">=None</span>, <span class="api-param">split</span><span class="api-default">="train"</span>, ...) &rarr; dataset</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">format_chat_template</span>(<span class="api-param">messages</span>, <span class="api-param">tokenizer</span>, <span class="api-param">add_generation_prompt</span><span class="api-default">=False</span>) &rarr; str</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">create_training_data</span>(<span class="api-param">dataset</span>, ...) &rarr; formatted_data</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">save_model_hf_format</span>(<span class="api-param">model</span>, <span class="api-param">tokenizer</span>, <span class="api-param">output_path</span>)</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">export_to_gguf</span>(<span class="api-param">model</span>, <span class="api-param">tokenizer</span>, <span class="api-param">output_path</span>, ...) &mdash; <a href="troubleshooting.html#gguf">See GGUF limitations</a></div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">get_training_config</span>(<span class="api-param">model_name</span>, ...) &rarr; Dict</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">load_vlm_dataset</span>(<span class="api-param">dataset</span>, ...) &rarr; dataset</div>
+        </div>
+      </div>
+
+      <footer class="footer">
+        <p>Community project, not affiliated with Unsloth AI or Apple.</p>
+        <p><a href="https://github.com/ARahim3/mlx-tune">GitHub</a> &middot; <a href="https://pypi.org/project/mlx-tune/">PyPI</a> &middot; Apache 2.0 License</p>
+      </footer>
+    </main>
+  </div>
+
+  <script src="assets/js/prism.min.js"></script>
+  <script src="assets/js/prism-python.min.js"></script>
+  <script src="assets/js/prism-bash.min.js"></script>
+  <script src="assets/js/main.js"></script>
+</body>
+</html>

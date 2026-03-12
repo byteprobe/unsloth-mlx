@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Examples &mdash; MLX-Tune Docs</title>
+  <meta name="description" content="Working examples for MLX-Tune: model loading, SFT, RL training, and vision fine-tuning.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230d1117'/><text x='50%25' y='73%25' text-anchor='middle' font-family='system-ui,-apple-system,sans-serif' font-weight='900' font-size='22' fill='%23e6edf3'>m</text></svg>">
+  <meta property="og:title" content="Examples - MLX-Tune Docs">
+  <meta property="og:image" content="https://arahim3.github.io/mlx-tune/assets/img/og-image.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/prism-dark.css">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+  <nav class="top-nav">
+    <div class="nav-inner">
+      <a href="index.html" class="nav-logo"><img src="assets/img/logo.png" alt="mlx-tune"></a>
+      <ul class="nav-links">
+        <li><a href="index.html">Getting Started</a></li>
+        <li><a href="workflow.html">Workflow</a></li>
+        <li><a href="examples.html">Examples</a></li>
+        <li><a href="api.html">API</a></li>
+        <li><a href="troubleshooting.html">Troubleshooting</a></li>
+      </ul>
+      <div class="nav-right">
+        <a href="https://github.com/ARahim3/mlx-tune" class="github-link" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" fill="currentColor"/></svg></a>
+        <button class="theme-toggle" aria-label="Toggle theme"></button>
+        <button class="mobile-toggle" aria-label="Menu">&#9776;</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+    <aside class="sidebar">
+      <div class="sidebar-title">On This Page</div>
+      <ul class="sidebar-nav">
+        <li><a href="#basics">Basics</a></li>
+        <li><a href="#sft">SFT Training</a></li>
+        <li><a href="#rl">RL Methods</a></li>
+        <li><a href="#vlm">Vision Models</a></li>
+      </ul>
+    </aside>
+
+    <main class="content">
+      <h1>Examples</h1>
+      <p>Standalone Python scripts covering model loading, fine-tuning, RL training, and vision models. Run any example directly with <code>python examples/&lt;filename&gt;</code>.</p>
+
+      <!-- Basics -->
+      <h2 id="basics">Basics</h2>
+      <div class="example-grid">
+
+        <div class="example-card">
+          <h4>01 &mdash; Simple Loading</h4>
+          <p>Load a model from HuggingFace with <code>FastLanguageModel.from_pretrained()</code>.</p>
+          <div class="example-tags"><span class="example-tag">FastLanguageModel</span><span class="example-tag">Basics</span></div>
+          <button class="example-toggle">View Code</button>
+          <div class="example-code">
+            <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">from mlx_tune import FastLanguageModel
+
+model, tokenizer = FastLanguageModel.from_pretrained(
+    "mlx-community/Llama-3.2-1B-Instruct-4bit",
+    max_seq_length=2048,
+    load_in_4bit=True,
+)
+print("Model loaded successfully!")</code></pre>
+            </div>
+            <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/01_simple_loading.py" target="_blank">Full source &rarr;</a></p>
+          </div>
+        </div>
+
+        <div class="example-card">
+          <h4>02 &mdash; LoRA Configuration</h4>
+          <p>Add LoRA adapters with <code>get_peft_model()</code> for parameter-efficient training.</p>
+          <div class="example-tags"><span class="example-tag">LoRA</span><span class="example-tag">Configuration</span></div>
+          <button class="example-toggle">View Code</button>
+          <div class="example-code">
+            <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">from mlx_tune import FastLanguageModel
+
+model, tokenizer = FastLanguageModel.from_pretrained(
+    "mlx-community/Llama-3.2-1B-Instruct-4bit",
+    max_seq_length=2048, load_in_4bit=True,
+)
+
+model = FastLanguageModel.get_peft_model(
+    model,
+    r=16,
+    target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
+    lora_alpha=16,
+    lora_dropout=0,
+)
+print(f"LoRA configured: rank={16}")</code></pre>
+            </div>
+            <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/02_lora_configuration.py" target="_blank">Full source &rarr;</a></p>
+          </div>
+        </div>
+
+        <div class="example-card">
+          <h4>03 &mdash; Inference</h4>
+          <p>Generate text with a loaded model using <code>for_inference()</code>.</p>
+          <div class="example-tags"><span class="example-tag">Inference</span><span class="example-tag">Generation</span></div>
+          <button class="example-toggle">View Code</button>
+          <div class="example-code">
+            <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">from mlx_tune import FastLanguageModel
+from mlx_lm import generate
+
+model, tokenizer = FastLanguageModel.from_pretrained(
+    "mlx-community/Llama-3.2-1B-Instruct-4bit",
+    max_seq_length=2048, load_in_4bit=True,
+)
+
+FastLanguageModel.for_inference(model)
+
+prompt = "What is machine learning?"
+response = generate(model.model, tokenizer,
+    prompt=prompt, max_tokens=100)
+print(response)</code></pre>
+            </div>
+            <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/03_inference.py" target="_blank">Full source &rarr;</a></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- SFT -->
+      <h2 id="sft">SFT Training</h2>
+      <div class="example-grid">
+
+        <div class="example-card">
+          <h4>04 &mdash; Simple Fine-tuning</h4>
+          <p>LoRA setup and basic training configuration walkthrough.</p>
+          <div class="example-tags"><span class="example-tag">SFT</span><span class="example-tag">LoRA</span></div>
+          <button class="example-toggle">View Code</button>
+          <div class="example-code">
+            <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">from mlx_tune import FastLanguageModel, SFTTrainer, SFTConfig
+
+model, tokenizer = FastLanguageModel.from_pretrained(
+    "mlx-community/Llama-3.2-1B-Instruct-4bit",
+    max_seq_length=2048, load_in_4bit=True,
+)
+model = FastLanguageModel.get_peft_model(model, r=16, lora_alpha=16)</code></pre>
+            </div>
+            <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/04_simple_finetuning.py" target="_blank">Full source &rarr;</a></p>
+          </div>
+        </div>
+
+        <div class="example-card">
+          <h4>05 &mdash; Complete Workflow</h4>
+          <p>Full pipeline: load, configure, train, and save a fine-tuned model.</p>
+          <div class="example-tags"><span class="example-tag">SFT</span><span class="example-tag">Pipeline</span></div>
+          <button class="example-toggle">View Code</button>
+          <div class="example-code">
+            <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">from mlx_tune import FastLanguageModel, SFTTrainer, SFTConfig
+from datasets import load_dataset
+
+model, tokenizer = FastLanguageModel.from_pretrained(
+    "mlx-community/Llama-3.2-1B-Instruct-4bit",
+    max_seq_length=2048, load_in_4bit=True,
+)
+model = FastLanguageModel.get_peft_model(model, r=16, lora_alpha=16)
+dataset = load_dataset("yahma/alpaca-cleaned", split="train[:100]")
+
+trainer = SFTTrainer(
+    model=model, train_dataset=dataset, tokenizer=tokenizer,
+    args=SFTConfig(output_dir="outputs", max_steps=50, learning_rate=2e-4),
+)
+trainer.train()
+model.save_pretrained("lora_model")</code></pre>
+            </div>
+            <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/05_complete_finetuning_workflow.py" target="_blank">Full source &rarr;</a></p>
+          </div>
+        </div>
+
+        <div class="example-card">
+          <h4>06 &mdash; Real Training Test</h4>
+          <p>Actual training run with SFTTrainer on a small dataset with logging.</p>
+          <div class="example-tags"><span class="example-tag">SFT</span><span class="example-tag">Training</span></div>
+          <button class="example-toggle">View Code</button>
+          <div class="example-code">
+            <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">from mlx_tune import FastLanguageModel, SFTTrainer, SFTConfig
+
+# Loads model, configures LoRA, trains on real data
+# with logging_steps=1 to monitor training loss
+# See full source for dataset preparation details</code></pre>
+            </div>
+            <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/06_real_training_test.py" target="_blank">Full source &rarr;</a></p>
+          </div>
+        </div>
+
+        <div class="example-card">
+          <h4>07 &mdash; Unsloth Comparison</h4>
+          <p>Side-by-side comparison of Unsloth vs MLX-Tune API usage.</p>
+          <div class="example-tags"><span class="example-tag">Migration</span><span class="example-tag">Comparison</span></div>
+          <button class="example-toggle">View Code</button>
+          <div class="example-code">
+            <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python"># Shows Unsloth code (commented) alongside MLX-Tune equivalent
+# Demonstrates that the API is 100% compatible
+# See workflow page for detailed translation guide</code></pre>
+            </div>
+            <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/07_unsloth_pipeline_comparison.py" target="_blank">Full source &rarr;</a></p>
+          </div>
+        </div>
+
+        <div class="example-card">
+          <h4>08 &mdash; Exact Unsloth Pipeline</h4>
+          <p>Complete Unsloth-compatible SFT workflow with chat templates, response masking, and export.</p>
+          <div class="example-tags"><span class="example-tag">SFT</span><span class="example-tag">Unsloth API</span><span class="example-tag">Full Pipeline</span></div>
+          <button class="example-toggle">View Code</button>
+          <div class="example-code">
+            <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">from mlx_tune import FastLanguageModel, SFTTrainer, SFTConfig
+from mlx_tune import get_chat_template, train_on_responses_only
+from datasets import load_dataset
+
+model, tokenizer = FastLanguageModel.from_pretrained(
+    "mlx-community/Llama-3.2-1B-Instruct-4bit",
+    max_seq_length=2048, load_in_4bit=True,
+)
+model = FastLanguageModel.get_peft_model(model, r=16, lora_alpha=16)
+tokenizer = get_chat_template(tokenizer, chat_template="llama-3")
+dataset = load_dataset("yahma/alpaca-cleaned", split="train[:100]")
+
+trainer = SFTTrainer(
+    model=model, train_dataset=dataset, tokenizer=tokenizer,
+    args=SFTConfig(output_dir="outputs", max_steps=50, learning_rate=2e-4),
+)
+trainer = train_on_responses_only(trainer,
+    instruction_part="&lt;|start_header_id|&gt;user&lt;|end_header_id|&gt;\n\n",
+    response_part="&lt;|start_header_id|&gt;assistant&lt;|end_header_id|&gt;\n\n",
+)
+trainer.train()
+model.save_pretrained("lora_model")
+model.save_pretrained_merged("merged", tokenizer)</code></pre>
+            </div>
+            <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/08_exact_unsloth_pipeline.py" target="_blank">Full source &rarr;</a></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- RL -->
+      <h2 id="rl">RL Methods</h2>
+      <div class="example-grid">
+        <div class="example-card">
+          <h4>09 &mdash; RL Training Methods</h4>
+          <p>DPO, ORPO, GRPO, KTO, and SimPO trainer demonstrations with preference datasets.</p>
+          <div class="example-tags"><span class="example-tag">DPO</span><span class="example-tag">ORPO</span><span class="example-tag">GRPO</span><span class="example-tag">KTO</span><span class="example-tag">SimPO</span></div>
+          <button class="example-toggle">View Code</button>
+          <div class="example-code">
+            <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">from mlx_tune import (
+    DPOTrainer, DPOConfig,
+    ORPOTrainer, ORPOConfig,
+    GRPOTrainer, GRPOConfig,
+    KTOTrainer, SimPOTrainer,
+)
+
+# DPO: Direct Preference Optimization
+trainer = DPOTrainer(
+    model=model, train_dataset=dpo_dataset,
+    args=DPOConfig(output_dir="dpo_output", max_steps=50),
+)
+trainer.train()
+
+# GRPO: Group Relative Policy Optimization (DeepSeek R1 style)
+trainer = GRPOTrainer(
+    model=model, train_dataset=grpo_dataset,
+    args=GRPOConfig(output_dir="grpo_output", max_steps=50),
+)
+trainer.train()</code></pre>
+            </div>
+            <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/09_rl_training_methods.py" target="_blank">Full source &rarr;</a></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- VLM -->
+      <h2 id="vlm">Vision Models</h2>
+      <div class="example-grid">
+        <div class="example-card">
+          <h4>10 &mdash; Qwen3.5 Vision Fine-tuning</h4>
+          <p>Fine-tune a vision-language model on image+text data (LaTeX OCR dataset).</p>
+          <div class="example-tags"><span class="example-tag">VLM</span><span class="example-tag">Qwen3.5</span><span class="example-tag">Vision</span></div>
+          <button class="example-toggle">View Code</button>
+          <div class="example-code">
+            <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">from mlx_tune import FastVisionModel, UnslothVisionDataCollator, VLMSFTTrainer
+from mlx_tune.vlm import VLMSFTConfig
+from datasets import load_dataset
+
+model, processor = FastVisionModel.from_pretrained(
+    "mlx-community/Qwen3.5-0.8B-bf16", load_in_4bit=False,
+)
+model = FastVisionModel.get_peft_model(model,
+    finetune_vision_layers=True, finetune_language_layers=True,
+    r=16, lora_alpha=16,
+)
+
+dataset = load_dataset("unsloth/LaTeX_OCR", split="train")
+
+FastVisionModel.for_training(model)
+trainer = VLMSFTTrainer(
+    model=model, tokenizer=processor,
+    data_collator=UnslothVisionDataCollator(model, processor),
+    train_dataset=converted_dataset,
+    args=VLMSFTConfig(max_steps=30, learning_rate=2e-4),
+)
+trainer.train()</code></pre>
+            </div>
+            <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/10_qwen35_vision_finetuning.py" target="_blank">Full source &rarr;</a></p>
+          </div>
+        </div>
+
+        <div class="example-card">
+          <h4>11 &mdash; Qwen3.5 Text Fine-tuning</h4>
+          <p>Fine-tune Qwen3.5 on text-only data without requiring any images.</p>
+          <div class="example-tags"><span class="example-tag">VLM</span><span class="example-tag">Text</span><span class="example-tag">Qwen3.5</span></div>
+          <button class="example-toggle">View Code</button>
+          <div class="example-code">
+            <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">from mlx_tune import FastVisionModel, UnslothVisionDataCollator, VLMSFTTrainer
+from mlx_tune.vlm import VLMSFTConfig
+
+# Qwen3.5 can be fine-tuned on text-only data
+# No images needed — the model handles pure text conversations
+model, processor = FastVisionModel.from_pretrained(
+    "mlx-community/Qwen3.5-0.8B-bf16", load_in_4bit=False,
+)
+# ... same training setup, just without image data</code></pre>
+            </div>
+            <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/11_qwen35_text_finetuning.py" target="_blank">Full source &rarr;</a></p>
+          </div>
+        </div>
+      </div>
+
+      <footer class="footer">
+        <p>Community project, not affiliated with Unsloth AI or Apple.</p>
+        <p><a href="https://github.com/ARahim3/mlx-tune">GitHub</a> &middot; <a href="https://pypi.org/project/mlx-tune/">PyPI</a> &middot; Apache 2.0 License</p>
+      </footer>
+    </main>
+  </div>
+
+  <script src="assets/js/prism.min.js"></script>
+  <script src="assets/js/prism-python.min.js"></script>
+  <script src="assets/js/prism-bash.min.js"></script>
+  <script src="assets/js/main.js"></script>
+</body>
+</html>

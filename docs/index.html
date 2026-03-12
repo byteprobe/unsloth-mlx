@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MLX-Tune &mdash; Fine-tune LLMs on Apple Silicon</title>
+  <meta name="description" content="Drop-in Unsloth replacement for Mac. Same API, powered by MLX. Prototype locally, scale to cloud.">
+
+  <!-- Favicon: bold "m" in SVG -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230d1117'/><text x='50%25' y='73%25' text-anchor='middle' font-family='system-ui,-apple-system,sans-serif' font-weight='900' font-size='22' fill='%23e6edf3'>m</text></svg>">
+  <link rel="apple-touch-icon" href="assets/img/logo.png">
+
+  <!-- Open Graph / Social -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="MLX-Tune - Fine-tune LLMs on Apple Silicon">
+  <meta property="og:description" content="Drop-in Unsloth replacement for Mac. Same API, powered by MLX. Prototype locally, scale to cloud.">
+  <meta property="og:image" content="https://arahim3.github.io/mlx-tune/assets/img/og-image.png">
+  <meta property="og:url" content="https://arahim3.github.io/mlx-tune/">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="MLX-Tune - Fine-tune LLMs on Apple Silicon">
+  <meta name="twitter:description" content="Drop-in Unsloth replacement for Mac. Same API, powered by MLX.">
+  <meta name="twitter:image" content="https://arahim3.github.io/mlx-tune/assets/img/og-image.png">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="assets/css/prism-dark.css">
+  <link rel="stylesheet" href="assets/css/style.css">
+
+  <style>
+    /* --- Page-specific hero enhancements --- */
+    .hero-glow {
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-glow::before {
+      content: '';
+      position: absolute;
+      top: -120px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 600px;
+      height: 400px;
+      background: radial-gradient(ellipse, var(--accent-subtle) 0%, transparent 70%);
+      pointer-events: none;
+      opacity: 0.6;
+    }
+    [data-theme="dark"] .hero-glow::before {
+      opacity: 0.4;
+      width: 800px;
+      height: 500px;
+      background: radial-gradient(ellipse, rgba(88, 166, 255, 0.06) 0%, transparent 70%);
+    }
+
+    .hero-version {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: var(--accent-subtle);
+      color: var(--accent);
+      margin-bottom: 20px;
+      letter-spacing: 0.02em;
+    }
+
+    .hero-install-prefix {
+      color: var(--text-muted);
+      user-select: none;
+    }
+
+    /* --- Section divider styling --- */
+    .section-divider {
+      width: 48px;
+      height: 2px;
+      background: var(--accent);
+      border: none;
+      margin: 0 0 24px;
+      border-radius: 1px;
+      opacity: 0.5;
+    }
+
+    /* --- Training methods status dot --- */
+    .status-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #2ea043;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    /* --- Comparison table highlight --- */
+    .comparison-highlight {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* --- Import note styling --- */
+    .import-note {
+      text-align: center;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-top: 8px;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===== Navigation ===== -->
+  <nav class="top-nav">
+    <div class="nav-inner">
+      <a href="index.html" class="nav-logo">
+        <img src="assets/img/logo.png" alt="mlx-tune">
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="index.html" class="active">Getting Started</a></li>
+        <li><a href="workflow.html">Workflow</a></li>
+        <li><a href="examples.html">Examples</a></li>
+        <li><a href="api.html">API</a></li>
+        <li><a href="troubleshooting.html">Troubleshooting</a></li>
+      </ul>
+
+      <div class="nav-right">
+        <a href="https://github.com/ARahim3/mlx-tune" class="github-link" target="_blank" rel="noopener" aria-label="GitHub">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+        <button class="theme-toggle" aria-label="Toggle theme"></button>
+        <button class="mobile-toggle" aria-label="Menu">&#9776;</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ===== Main Content ===== -->
+  <div class="page-wrapper">
+    <main class="content full-width">
+
+      <!-- ===== Hero ===== -->
+      <section class="hero hero-glow">
+        <span class="hero-version">v0.4.2</span>
+        <img src="assets/img/logo.png" alt="MLX-Tune" class="hero-logo">
+        <h1 class="hero-tagline">Fine-tune LLMs on your Mac with Apple Silicon</h1>
+        <p class="hero-subtitle">Prototype locally, scale to cloud. Same code, just change the import.</p>
+
+        <div class="hero-install" data-copy="pip install mlx-tune" role="button" tabindex="0" aria-label="Copy install command">
+          <span class="copied-tooltip">Copied!</span>
+          <span class="hero-install-prefix">$</span>
+          <span>pip install mlx-tune</span>
+          <svg class="copy-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M2.5 10.5V3a1.5 1.5 0 011.5-1.5h7.5"/></svg>
+        </div>
+
+        <div class="hero-buttons">
+          <a href="#quick-start" class="btn btn-primary">Get Started</a>
+          <a href="https://github.com/ARahim3/mlx-tune" class="btn btn-secondary" target="_blank" rel="noopener">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+            View on GitHub
+          </a>
+        </div>
+      </section>
+
+      <!-- ===== Feature Cards ===== -->
+      <div class="features">
+        <div class="feature-card">
+          <div class="feature-icon">&#9881;</div>
+          <h3>Fine-tune Locally</h3>
+          <p>Train LLMs on M1&ndash;M5 Macs natively with Apple&rsquo;s MLX framework. No cloud GPU required.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#9618;</div>
+          <h3>Unified Memory</h3>
+          <p>Access up to 512GB unified RAM on Mac Studio. Load larger models than discrete GPU VRAM allows.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#8644;</div>
+          <h3>Same API as Unsloth</h3>
+          <p>Write once, run on Mac or CUDA. Just change the import line&mdash;your training code stays the same.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#9993;</div>
+          <h3>Export Anywhere</h3>
+          <p>Save to HuggingFace format, GGUF for Ollama and llama.cpp, or merged weights for deployment.</p>
+        </div>
+      </div>
+
+      <!-- ===== Import Comparison ===== -->
+      <section class="section">
+        <div class="section-label">The Idea</div>
+        <h2 style="margin-top: 0;">One import change. That&rsquo;s it.</h2>
+        <p>Your Unsloth training scripts work on Apple Silicon with a single line change.</p>
+
+        <div class="code-compare">
+          <div class="code-compare-panel">
+            <div class="code-compare-label">Unsloth (CUDA)</div>
+            <div class="code-block-wrapper">
+              <button class="copy-btn">Copy</button>
+              <pre><code class="language-python">from unsloth import FastLanguageModel
+from trl import SFTTrainer, SFTConfig</code></pre>
+            </div>
+          </div>
+          <div class="code-compare-panel">
+            <div class="code-compare-label">MLX-Tune (Apple Silicon)</div>
+            <div class="code-block-wrapper">
+              <button class="copy-btn">Copy</button>
+              <pre><code class="language-python">from mlx_tune import FastLanguageModel
+from mlx_tune import SFTTrainer, SFTConfig</code></pre>
+            </div>
+          </div>
+        </div>
+        <p class="import-note">Rest of your code stays exactly the same.</p>
+      </section>
+
+      <!-- ===== Quick Start ===== -->
+      <section class="section" id="quick-start">
+        <div class="section-label">Quick Start</div>
+        <h2 style="margin-top: 0;">Up and running in minutes</h2>
+        <p>A complete fine-tuning pipeline in under 20 lines.</p>
+
+        <div class="code-block-wrapper">
+          <button class="copy-btn">Copy</button>
+          <pre><code class="language-python">from mlx_tune import FastLanguageModel, SFTTrainer, SFTConfig
+from datasets import load_dataset
+
+# Load any HuggingFace model (1B model for quick start)
+model, tokenizer = FastLanguageModel.from_pretrained(
+    model_name="mlx-community/Llama-3.2-1B-Instruct-4bit",
+    max_seq_length=2048,
+    load_in_4bit=True,
+)
+
+# Add LoRA adapters
+model = FastLanguageModel.get_peft_model(
+    model,
+    r=16,
+    target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
+    lora_alpha=16,
+)
+
+# Load a dataset
+dataset = load_dataset("yahma/alpaca-cleaned", split="train[:100]")
+
+# Train with SFTTrainer (same API as TRL!)
+trainer = SFTTrainer(
+    model=model,
+    train_dataset=dataset,
+    tokenizer=tokenizer,
+    args=SFTConfig(
+        output_dir="outputs",
+        per_device_train_batch_size=2,
+        learning_rate=2e-4,
+        max_steps=50,
+    ),
+)
+trainer.train()
+
+# Save (same API as Unsloth!)
+model.save_pretrained("lora_model")           # Adapters only
+model.save_pretrained_merged("merged", tokenizer)  # Full model</code></pre>
+        </div>
+      </section>
+
+      <!-- ===== Installation ===== -->
+      <section class="section" id="installation">
+        <div class="section-label">Installation</div>
+        <h2 style="margin-top: 0;">Get MLX-Tune</h2>
+
+        <h3>Using uv (recommended)</h3>
+        <div class="code-block-wrapper">
+          <button class="copy-btn">Copy</button>
+          <pre><code class="language-bash">uv pip install mlx-tune</code></pre>
+        </div>
+
+        <h3>Using pip</h3>
+        <div class="code-block-wrapper">
+          <button class="copy-btn">Copy</button>
+          <pre><code class="language-bash">pip install mlx-tune</code></pre>
+        </div>
+
+        <h3>From source (development)</h3>
+        <div class="code-block-wrapper">
+          <button class="copy-btn">Copy</button>
+          <pre><code class="language-bash">git clone https://github.com/ARahim3/mlx-tune.git
+cd mlx-tune
+uv pip install -e .</code></pre>
+        </div>
+
+        <h3>Requirements</h3>
+        <table>
+          <tbody>
+            <tr><td><strong>Hardware</strong></td><td>Apple Silicon Mac (M1 / M2 / M3 / M4 / M5)</td></tr>
+            <tr><td><strong>OS</strong></td><td>macOS 13.0+ &nbsp;(15.0+ recommended for large models)</td></tr>
+            <tr><td><strong>Memory</strong></td><td>16 GB+ unified RAM &nbsp;(32 GB+ for 7B+ models)</td></tr>
+            <tr><td><strong>Python</strong></td><td>3.9+</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ===== Training Methods ===== -->
+      <section class="section" id="training-methods">
+        <div class="section-label">Training Methods</div>
+        <h2 style="margin-top: 0;">Supported trainers</h2>
+        <p>All trainers use native MLX &mdash; no subprocess calls or CUDA wrappers.</p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Method</th>
+              <th>Trainer</th>
+              <th>Use Case</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>SFT</strong></td>
+              <td><code>SFTTrainer</code></td>
+              <td>Instruction fine-tuning</td>
+            </tr>
+            <tr>
+              <td><strong>DPO</strong></td>
+              <td><code>DPOTrainer</code></td>
+              <td>Preference learning</td>
+            </tr>
+            <tr>
+              <td><strong>ORPO</strong></td>
+              <td><code>ORPOTrainer</code></td>
+              <td>Combined SFT + odds ratio preference</td>
+            </tr>
+            <tr>
+              <td><strong>GRPO</strong></td>
+              <td><code>GRPOTrainer</code></td>
+              <td>Reasoning with multi-generation (DeepSeek R1 style)</td>
+            </tr>
+            <tr>
+              <td><strong>KTO</strong></td>
+              <td><code>KTOTrainer</code></td>
+              <td>Kahneman-Tversky optimization</td>
+            </tr>
+            <tr>
+              <td><strong>SimPO</strong></td>
+              <td><code>SimPOTrainer</code></td>
+              <td>Simple preference optimization</td>
+            </tr>
+            <tr>
+              <td><strong>VLM SFT</strong></td>
+              <td><code>VLMSFTTrainer</code></td>
+              <td>Vision-Language model fine-tuning</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ===== Comparison ===== -->
+      <section class="section" id="comparison">
+        <div class="section-label">Comparison</div>
+        <h2 style="margin-top: 0;">MLX-Tune vs Unsloth</h2>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Feature</th>
+              <th>Unsloth (CUDA)</th>
+              <th>MLX-Tune</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Platform</strong></td>
+              <td>NVIDIA GPUs</td>
+              <td>Apple Silicon</td>
+            </tr>
+            <tr>
+              <td><strong>Backend</strong></td>
+              <td>Triton Kernels</td>
+              <td>MLX Framework</td>
+            </tr>
+            <tr>
+              <td><strong>Memory</strong></td>
+              <td>VRAM (limited)</td>
+              <td class="comparison-highlight">Unified (up to 512 GB)</td>
+            </tr>
+            <tr>
+              <td><strong>API</strong></td>
+              <td>Original</td>
+              <td>100% Compatible</td>
+            </tr>
+            <tr>
+              <td><strong>Best For</strong></td>
+              <td>Production training</td>
+              <td>Local dev &amp; large models</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="callout">
+          <div class="callout-title">Note</div>
+          <p>MLX-Tune is <strong>not</strong> a replacement for Unsloth. It&rsquo;s a bridge: prototype on your Mac, then deploy to CUDA with the original Unsloth for production training.</p>
+        </div>
+      </section>
+
+      <!-- ===== Footer ===== -->
+      <footer class="footer">
+        <p>Community project, not affiliated with Unsloth AI or Apple.</p>
+        <p><a href="https://github.com/ARahim3/mlx-tune">GitHub</a> &middot; <a href="https://pypi.org/project/mlx-tune/">PyPI</a> &middot; Apache 2.0 License</p>
+      </footer>
+
+    </main>
+  </div>
+
+  <!-- ===== Scripts ===== -->
+  <script src="assets/js/prism.min.js"></script>
+  <script src="assets/js/prism-python.min.js"></script>
+  <script src="assets/js/prism-bash.min.js"></script>
+  <script src="assets/js/main.js"></script>
+</body>
+</html>

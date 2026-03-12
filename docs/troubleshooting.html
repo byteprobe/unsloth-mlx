@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Troubleshooting &mdash; MLX-Tune Docs</title>
+  <meta name="description" content="Common issues and solutions for MLX-Tune.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230d1117'/><text x='50%25' y='73%25' text-anchor='middle' font-family='system-ui,-apple-system,sans-serif' font-weight='900' font-size='22' fill='%23e6edf3'>m</text></svg>">
+  <meta property="og:title" content="Troubleshooting - MLX-Tune Docs">
+  <meta property="og:image" content="https://arahim3.github.io/mlx-tune/assets/img/og-image.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/prism-dark.css">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+  <nav class="top-nav">
+    <div class="nav-inner">
+      <a href="index.html" class="nav-logo"><img src="assets/img/logo.png" alt="mlx-tune"></a>
+      <ul class="nav-links">
+        <li><a href="index.html">Getting Started</a></li>
+        <li><a href="workflow.html">Workflow</a></li>
+        <li><a href="examples.html">Examples</a></li>
+        <li><a href="api.html">API</a></li>
+        <li><a href="troubleshooting.html">Troubleshooting</a></li>
+      </ul>
+      <div class="nav-right">
+        <a href="https://github.com/ARahim3/mlx-tune" class="github-link" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" fill="currentColor"/></svg></a>
+        <button class="theme-toggle" aria-label="Toggle theme"></button>
+        <button class="mobile-toggle" aria-label="Menu">&#9776;</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+    <aside class="sidebar">
+      <div class="sidebar-title">On This Page</div>
+      <ul class="sidebar-nav">
+        <li><a href="#model-not-found">Model Not Found</a></li>
+        <li><a href="#oom">Out of Memory</a></li>
+        <li><a href="#slow">Slow Generation</a></li>
+        <li><a href="#gguf">GGUF Export</a></li>
+        <li><a href="#vlm-issues">VLM Issues</a></li>
+        <li><a href="#help">Getting Help</a></li>
+      </ul>
+    </aside>
+
+    <main class="content">
+      <h1>Troubleshooting</h1>
+      <p>Common issues and their solutions.</p>
+
+      <!-- Model Not Found -->
+      <h2 id="model-not-found">Model Not Found</h2>
+      <p><strong>Error:</strong> <code>Model 'xyz' not found</code></p>
+      <p>MLX-Tune uses models from the <code>mlx-community/</code> organization on HuggingFace. CUDA-specific models (with <code>-bnb-4bit</code> suffix from <code>unsloth/</code>) won&rsquo;t work.</p>
+      <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python"># Don't use CUDA-specific models
+# model_name = "unsloth/Meta-Llama-3.1-8B-bnb-4bit"  # Won't work!
+
+# Use MLX community models instead
+model_name = "mlx-community/Llama-3.2-8B-Instruct-4bit"</code></pre>
+      </div>
+      <div class="callout">
+        <div class="callout-title">Tip</div>
+        <p>Browse available models at <a href="https://huggingface.co/mlx-community" target="_blank">huggingface.co/mlx-community</a>.</p>
+      </div>
+
+      <!-- Out of Memory -->
+      <h2 id="oom">Out of Memory</h2>
+      <p><strong>Symptom:</strong> Process gets killed or system becomes unresponsive during model loading or training.</p>
+      <h3>Recommended models by RAM</h3>
+      <table>
+        <thead><tr><th>RAM</th><th>Recommended Size</th><th>Example Model</th></tr></thead>
+        <tbody>
+          <tr><td><strong>16 GB</strong></td><td>1B&ndash;3B, 4-bit</td><td><code>mlx-community/Llama-3.2-1B-Instruct-4bit</code></td></tr>
+          <tr><td><strong>32 GB</strong></td><td>Up to 7B, 4-bit</td><td><code>mlx-community/Llama-3.2-7B-Instruct-4bit</code></td></tr>
+          <tr><td><strong>48 GB</strong></td><td>7B&ndash;13B, 4-bit</td><td><code>mlx-community/Llama-3.1-13B-Instruct-4bit</code></td></tr>
+          <tr><td><strong>64 GB+</strong></td><td>13B+ or 8-bit</td><td><code>mlx-community/Llama-3.1-70B-Instruct-4bit</code></td></tr>
+        </tbody>
+      </table>
+      <h3>Solutions</h3>
+      <ul style="color:var(--text-secondary);line-height:2;">
+        <li>Use a smaller model</li>
+        <li>Use 4-bit quantization (<code>load_in_4bit=True</code>)</li>
+        <li>Reduce <code>max_seq_length</code></li>
+        <li>Close other applications (browsers, IDEs consume significant RAM)</li>
+        <li>Upgrade to macOS 15+ for improved memory wiring with large models</li>
+      </ul>
+
+      <!-- Slow Generation -->
+      <h2 id="slow">Slow Generation</h2>
+      <p><strong>Symptom:</strong> Text generation is slower than expected.</p>
+      <h3>Solutions</h3>
+      <p>1. <strong>Always enable inference mode</strong> before generating:</p>
+      <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python"># Always do this before inference!
+FastLanguageModel.for_inference(model)
+
+# Then generate
+from mlx_lm import generate
+response = generate(model.model, tokenizer,
+    prompt=prompt, max_tokens=100)</code></pre>
+      </div>
+      <ul style="color:var(--text-secondary);line-height:2;">
+        <li>2. Use 4-bit quantized models (faster than fp16 for inference)</li>
+        <li>3. Reduce <code>max_tokens</code> in generation calls</li>
+        <li>4. Ensure macOS 15+ for the latest MLX kernel optimizations</li>
+        <li>5. Close memory-heavy applications to free unified memory bandwidth</li>
+      </ul>
+
+      <!-- GGUF Export -->
+      <h2 id="gguf">GGUF Export from Quantized Models</h2>
+      <p>GGUF export (<code>save_pretrained_gguf</code>) doesn&rsquo;t work with quantized (4-bit) base models. This is a <a href="https://github.com/ml-explore/mlx-lm/issues/353" target="_blank">known mlx-lm limitation</a>, not an MLX-Tune bug.</p>
+
+      <h3>What works</h3>
+      <table>
+        <tbody>
+          <tr><td>Training with quantized models (QLoRA)</td><td><strong style="color:#2ea043;">Works</strong></td></tr>
+          <tr><td>Saving adapters (<code>save_pretrained</code>)</td><td><strong style="color:#2ea043;">Works</strong></td></tr>
+          <tr><td>Saving merged model (<code>save_pretrained_merged</code>)</td><td><strong style="color:#2ea043;">Works</strong></td></tr>
+          <tr><td>Inference with trained model</td><td><strong style="color:#2ea043;">Works</strong></td></tr>
+          <tr><td>GGUF export from quantized base</td><td><strong style="color:#da3633;">Doesn&rsquo;t work</strong></td></tr>
+        </tbody>
+      </table>
+
+      <h3>Workaround 1: Use a non-quantized base model</h3>
+      <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python"># Use fp16 model instead of 4-bit
+model, tokenizer = FastLanguageModel.from_pretrained(
+    model_name="mlx-community/Llama-3.2-1B-Instruct",  # NOT -4bit
+    max_seq_length=2048,
+    load_in_4bit=False,  # Train in fp16
+)
+# Train normally, then export to GGUF
+model.save_pretrained_gguf("model", tokenizer)  # Works!</code></pre>
+      </div>
+
+      <h3>Workaround 2: Dequantize during export</h3>
+      <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">model.save_pretrained_gguf("model", tokenizer, dequantize=True)
+# Then re-quantize with llama.cpp:
+# ./llama-quantize model.gguf model-q4_k_m.gguf Q4_K_M</code></pre>
+      </div>
+
+      <h3>Workaround 3: Skip GGUF entirely</h3>
+      <p>If you only need the model for MLX/Python inference, use <code>save_pretrained_merged()</code> instead. No GGUF conversion needed.</p>
+
+      <!-- VLM Issues -->
+      <h2 id="vlm-issues">VLM Issues</h2>
+
+      <h3>Batch size must be 1</h3>
+      <p>VLM training requires <code>per_device_train_batch_size=1</code> because images produce variable numbers of vision tokens. The <code>VLMSFTTrainer</code> enforces this automatically. Use <code>gradient_accumulation_steps</code> to simulate larger batch sizes.</p>
+
+      <h3>Think tags in output</h3>
+      <p>Qwen3.5 models may produce <code>&lt;think&gt;...&lt;/think&gt;</code> tags in generated text. MLX-Tune&rsquo;s <code>generate()</code> method strips these automatically.</p>
+
+      <h3>Image format</h3>
+      <p>Images should be PIL Image objects. The <code>UnslothVisionDataCollator</code> handles conversion from datasets automatically.</p>
+
+      <h3>Text-only VLM training</h3>
+      <p>Qwen3.5 can be fine-tuned on text-only data without images. See <a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/11_qwen35_text_finetuning.py" target="_blank">example 11</a>.</p>
+
+      <!-- Getting Help -->
+      <h2 id="help">Getting Help</h2>
+      <ul style="color:var(--text-secondary);line-height:2.2;">
+        <li>Check this troubleshooting page first</li>
+        <li>Browse the <a href="examples.html">examples</a> for working code</li>
+        <li>Open an issue on <a href="https://github.com/ARahim3/mlx-tune/issues" target="_blank">GitHub</a></li>
+        <li>MLX documentation: <a href="https://ml-explore.github.io/mlx/" target="_blank">ml-explore.github.io/mlx</a></li>
+        <li>mlx-lm issues: <a href="https://github.com/ml-explore/mlx-lm/issues" target="_blank">github.com/ml-explore/mlx-lm</a></li>
+        <li>mlx-vlm issues: <a href="https://github.com/Blaizzy/mlx-vlm/issues" target="_blank">github.com/Blaizzy/mlx-vlm</a></li>
+      </ul>
+
+      <footer class="footer">
+        <p>Community project, not affiliated with Unsloth AI or Apple.</p>
+        <p><a href="https://github.com/ARahim3/mlx-tune">GitHub</a> &middot; <a href="https://pypi.org/project/mlx-tune/">PyPI</a> &middot; Apache 2.0 License</p>
+      </footer>
+    </main>
+  </div>
+
+  <script src="assets/js/prism.min.js"></script>
+  <script src="assets/js/prism-python.min.js"></script>
+  <script src="assets/js/prism-bash.min.js"></script>
+  <script src="assets/js/main.js"></script>
+</body>
+</html>
