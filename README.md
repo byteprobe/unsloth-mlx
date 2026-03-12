@@ -235,7 +235,7 @@ Check [`examples/`](examples/) for working code:
 ## Requirements
 
 - **Hardware**: Apple Silicon Mac (M1/M2/M3/M4/M5)
-- **OS**: macOS 13.0+ (15.0+ recommended for large models)
+- **OS**: macOS 13.0+
 - **Memory**: 16GB+ unified RAM (32GB+ for 7B+ models)
 - **Python**: 3.9+
 

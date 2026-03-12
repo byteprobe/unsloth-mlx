@@ -6,7 +6,7 @@ Get started with MLX-Tune in under 5 minutes!
 
 ### Prerequisites
 - Apple Silicon Mac (M1, M2, M3, M4, or M5)
-- macOS 13.0+ (macOS 15.0+ recommended for large models)
+- macOS 13.0+
 - Python 3.9+
 - 16GB+ RAM (32GB+ recommended for larger models)
 
@@ -260,7 +260,7 @@ model_name = "mlx-community/Llama-3.2-8B-Instruct-4bit"
 1. Call `FastLanguageModel.for_inference(model)` before generation
 2. Use 4-bit quantized models
 3. Reduce `max_tokens` in generation
-4. Ensure macOS 15+ for memory wiring optimization
+4. Keep macOS updated for the latest MLX improvements
 
 ## Next Steps
 
