@@ -756,17 +756,17 @@ class _VLMTrainerShim:
 
         # Mask prompt tokens (train on completions only)
         if self.train_on_completions and self.assistant_id is not None:
-            completion_mask = mx.zeros_like(shift_labels, dtype=loss.dtype)
+            mask_rows = []
             for i in range(shift_labels.shape[0]):
                 labels_list = shift_labels[i].tolist()
                 in_completion = False
-                mask_row = [0.0] * len(labels_list)
-                for j, tok in enumerate(labels_list):
+                mask_row = []
+                for tok in labels_list:
                     if tok == self.assistant_id:
                         in_completion = True
-                    if in_completion:
-                        mask_row[j] = 1.0
-                completion_mask = completion_mask.at[i].put(mx.array(mask_row))
+                    mask_row.append(1.0 if in_completion else 0.0)
+                mask_rows.append(mask_row)
+            completion_mask = mx.array(mask_rows, dtype=loss.dtype)
             loss_mask = loss_mask * completion_mask
 
         loss = (loss * loss_mask).sum() / mx.maximum(loss_mask.sum(), 1)
