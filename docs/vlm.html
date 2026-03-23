@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vision Model Fine-Tuning &mdash; MLX-Tune Docs</title>
+  <meta name="description" content="Fine-tune vision-language models like Qwen3.5 on Apple Silicon with MLX-Tune. Real LoRA on both vision encoder and language model.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230d1117'/><text x='50%25' y='73%25' text-anchor='middle' font-family='system-ui,-apple-system,sans-serif' font-weight='900' font-size='22' fill='%23e6edf3'>m</text></svg>">
+  <meta property="og:title" content="Vision Model Fine-Tuning - MLX-Tune Docs">
+  <meta property="og:image" content="https://arahim3.github.io/mlx-tune/assets/img/og-image.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/prism-dark.css">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+  <nav class="top-nav">
+    <div class="nav-inner">
+      <a href="index.html" class="nav-logo"><img src="assets/img/logo.png" alt="mlx-tune"></a>
+      <ul class="nav-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="llm.html">LLM</a></li>
+        <li><a href="vlm.html" class="active">VLM</a></li>
+        <li><a href="audio.html">Audio</a></li>
+        <li><a href="workflow.html">Workflow</a></li>
+        <li><a href="troubleshooting.html">Troubleshooting</a></li>
+      </ul>
+      <div class="nav-right">
+        <a href="https://github.com/ARahim3/mlx-tune" class="github-link" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" fill="currentColor"/></svg></a>
+        <button class="theme-toggle" aria-label="Toggle theme"></button>
+        <button class="mobile-toggle" aria-label="Menu">&#9776;</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+    <aside class="sidebar">
+      <div class="sidebar-title">On This Page</div>
+      <ul class="sidebar-nav">
+        <li><a href="#quick-start">Quick Start</a></li>
+        <li><a href="#FastVisionModel">FastVisionModel</a></li>
+        <li class="sub-item"><a href="#VLMModelWrapper">VLMModelWrapper</a></li>
+        <li><a href="#training">Training</a></li>
+        <li class="sub-item"><a href="#VLMSFTTrainer">VLMSFTTrainer</a></li>
+        <li><a href="#post-training">Post-Training</a></li>
+        <li><a href="#examples">Examples</a></li>
+        <li><a href="#tips">Tips</a></li>
+      </ul>
+    </aside>
+
+    <main class="content">
+      <h1>Vision Model Fine-Tuning</h1>
+      <p>Fine-tune vision-language models like Qwen3.5 on Apple Silicon. Real LoRA on both vision encoder and language model.</p>
+
+      <!-- ===== Quick Start ===== -->
+      <section class="section" id="quick-start">
+        <div class="section-label">Quick Start</div>
+        <h2 style="margin-top: 0;">VLM fine-tuning in 25 lines</h2>
+        <p>A complete Qwen3.5 Vision fine-tuning pipeline.</p>
+
+        <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">from mlx_tune import FastVisionModel, VLMSFTTrainer, VLMSFTConfig, UnslothVisionDataCollator
+from datasets import load_dataset
+
+# Load a vision-language model
+model, processor = FastVisionModel.from_pretrained(
+    "mlx-community/Qwen2.5-VL-3B-Instruct-4bit",
+    max_seq_length=1024,
+)
+
+# Add LoRA to both vision encoder and language model
+model = FastVisionModel.get_peft_model(
+    model,
+    finetune_vision_layers=True,
+    finetune_language_layers=True,
+    r=16, lora_alpha=16,
+)
+
+# Load your dataset
+dataset = load_dataset("your-dataset", split="train[:100]")
+
+# Train
+FastVisionModel.for_training(model)
+collator = UnslothVisionDataCollator(model, processor)
+trainer = VLMSFTTrainer(
+    model=model, tokenizer=processor,
+    data_collator=collator, train_dataset=dataset,
+    args=VLMSFTConfig(output_dir="./vlm_output", max_steps=30),
+)
+trainer.train()
+
+# Inference
+FastVisionModel.for_inference(model)
+response = model.generate("Describe this image.", image="photo.jpg")
+print(response)</code></pre>
+        </div>
+      </section>
+
+      <!-- ===== FastVisionModel ===== -->
+      <div class="api-module" id="FastVisionModel">
+        <div class="api-module-header">
+          <h2 style="margin:0;">FastVisionModel</h2>
+          <span class="module-path">mlx_tune.vlm</span>
+        </div>
+
+        <div class="api-entry">
+          <h3>FastVisionModel.from_pretrained()</h3>
+          <div class="api-signature">
+            <span class="api-name">FastVisionModel.from_pretrained</span>(<span class="api-param">model_name</span>, <span class="api-param">max_seq_length</span><span class="api-default">=None</span>, <span class="api-param">load_in_4bit</span><span class="api-default">=False</span>, ...) &rarr; <span class="api-param">Tuple[VLMModelWrapper, Processor]</span>
+          </div>
+          <p>Load a vision-language model from HuggingFace. Returns a model wrapper and a <strong>processor</strong> (not a tokenizer).</p>
+          <table class="api-params">
+            <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>model_name</code></td><td>str</td><td>HuggingFace model ID (e.g., <code>"mlx-community/Qwen2.5-VL-3B-Instruct-4bit"</code>) or local path</td></tr>
+              <tr><td><code>max_seq_length</code></td><td>int, optional</td><td>Maximum sequence length for training/inference</td></tr>
+              <tr><td><code>load_in_4bit</code></td><td>bool</td><td>Load model with 4-bit quantization</td></tr>
+            </tbody>
+          </table>
+
+          <div class="callout" style="margin-top: 16px;">
+            <div class="callout-title">Note</div>
+            <p>Unlike <code>FastLanguageModel</code>, this returns a <strong>processor</strong> as the second value (not a tokenizer). The processor handles both text tokenization and image preprocessing.</p>
+          </div>
+        </div>
+
+        <div class="api-entry">
+          <h3>FastVisionModel.get_peft_model()</h3>
+          <div class="api-signature">
+            <span class="api-name">FastVisionModel.get_peft_model</span>(<span class="api-param">model</span>, <span class="api-param">finetune_vision_layers</span><span class="api-default">=True</span>, <span class="api-param">finetune_language_layers</span><span class="api-default">=True</span>, <span class="api-param">finetune_attention_modules</span><span class="api-default">=True</span>, <span class="api-param">finetune_mlp_modules</span><span class="api-default">=True</span>, <span class="api-param">r</span><span class="api-default">=16</span>, <span class="api-param">lora_alpha</span><span class="api-default">=16</span>, ...) &rarr; <span class="api-param">VLMModelWrapper</span>
+          </div>
+          <p>Add LoRA adapters to vision and/or language components of the model.</p>
+          <table class="api-params">
+            <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>finetune_vision_layers</code></td><td>bool</td><td><code>True</code></td><td>Apply LoRA to vision encoder layers</td></tr>
+              <tr><td><code>finetune_language_layers</code></td><td>bool</td><td><code>True</code></td><td>Apply LoRA to language model layers</td></tr>
+              <tr><td><code>finetune_attention_modules</code></td><td>bool</td><td><code>True</code></td><td>Apply LoRA to attention modules (q, k, v, o projections)</td></tr>
+              <tr><td><code>finetune_mlp_modules</code></td><td>bool</td><td><code>True</code></td><td>Apply LoRA to MLP/feed-forward modules</td></tr>
+              <tr><td><code>r</code></td><td>int</td><td><code>16</code></td><td>LoRA rank (higher = more parameters, better quality)</td></tr>
+              <tr><td><code>lora_alpha</code></td><td>int</td><td><code>16</code></td><td>LoRA scaling factor. Recommended: equal to <code>r</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="api-entry">
+          <h3>FastVisionModel.for_training()</h3>
+          <div class="api-signature">
+            <span class="api-name">FastVisionModel.for_training</span>(<span class="api-param">model</span>)
+          </div>
+          <p>Enable training mode. <strong>Required</strong> before starting any training loop.</p>
+        </div>
+
+        <div class="api-entry">
+          <h3>FastVisionModel.for_inference()</h3>
+          <div class="api-signature">
+            <span class="api-name">FastVisionModel.for_inference</span>(<span class="api-param">model</span>)
+          </div>
+          <p>Enable inference mode. Activates KV caching and disables dropout. <strong>Always call before generating.</strong></p>
+        </div>
+      </div>
+
+      <!-- ===== VLMModelWrapper ===== -->
+      <div class="api-module" id="VLMModelWrapper">
+        <div class="api-module-header">
+          <h2 style="margin:0;">VLMModelWrapper</h2>
+          <span class="module-path">mlx_tune.vlm</span>
+        </div>
+
+        <div class="api-entry">
+          <p>Wrapper returned by <code>FastVisionModel.from_pretrained()</code>. Provides Unsloth-compatible methods for generation, saving, and loading.</p>
+
+          <h4>model.generate()</h4>
+          <div class="api-signature">
+            <span class="api-name">model.generate</span>(<span class="api-param">prompt</span>, <span class="api-param">image</span><span class="api-default">=None</span>, <span class="api-param">max_tokens</span><span class="api-default">=256</span>, <span class="api-param">temperature</span><span class="api-default">=0.0</span>, <span class="api-param">min_p</span><span class="api-default">=0.0</span>) &rarr; <span class="api-param">str</span>
+          </div>
+          <p>Generate a response from a text prompt with an optional image. Works for both vision+text and text-only inputs.</p>
+          <table class="api-params">
+            <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>prompt</code></td><td>str</td><td>Text prompt for the model</td></tr>
+              <tr><td><code>image</code></td><td>str, optional</td><td>Path to an image file, or <code>None</code> for text-only</td></tr>
+              <tr><td><code>max_tokens</code></td><td>int</td><td>Maximum number of tokens to generate</td></tr>
+              <tr><td><code>temperature</code></td><td>float</td><td>Sampling temperature (0.0 = greedy)</td></tr>
+              <tr><td><code>min_p</code></td><td>float</td><td>Minimum probability threshold for sampling (recommended: 0.1)</td></tr>
+            </tbody>
+          </table>
+
+          <h4>model.save_pretrained()</h4>
+          <div class="api-signature">
+            <span class="api-name">model.save_pretrained</span>(<span class="api-param">output_dir</span>)
+          </div>
+          <p>Save LoRA adapters to disk. Writes <code>adapters.safetensors</code>, <code>adapter_config.json</code> (mlx-lm compatible format), and <code>config.json</code>.</p>
+
+          <h4>model.load_adapter()</h4>
+          <div class="api-signature">
+            <span class="api-name">model.load_adapter</span>(<span class="api-param">adapter_path</span>)
+          </div>
+          <p>Load previously saved LoRA adapters into the model.</p>
+
+          <h4>model.save_pretrained_merged()</h4>
+          <div class="api-signature">
+            <span class="api-name">model.save_pretrained_merged</span>(<span class="api-param">output_dir</span>, <span class="api-param">processor</span>)
+          </div>
+          <p>Fuse LoRA weights into the base model and save the full merged model.</p>
+        </div>
+      </div>
+
+      <!-- ===== Training ===== -->
+      <div class="api-module" id="training">
+        <div class="api-module-header">
+          <h2 style="margin:0;">Training</h2>
+          <span class="module-path">mlx_tune.vlm</span>
+        </div>
+
+        <div class="api-entry" id="VLMSFTTrainer">
+          <h3>VLMSFTTrainer</h3>
+          <div class="api-signature">
+            <span class="api-name">VLMSFTTrainer</span>(<span class="api-param">model</span>, <span class="api-param">tokenizer</span>, <span class="api-param">data_collator</span>, <span class="api-param">train_dataset</span>, <span class="api-param">args</span><span class="api-default">=None</span>)
+          </div>
+          <p>Native MLX training loop for vision-language models. Handles forward pass, loss computation, and gradient updates internally.</p>
+          <table class="api-params">
+            <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>model</code></td><td>VLMModelWrapper</td><td>Model with LoRA adapters configured</td></tr>
+              <tr><td><code>tokenizer</code></td><td>Processor</td><td>Processor from <code>FastVisionModel.from_pretrained()</code></td></tr>
+              <tr><td><code>data_collator</code></td><td>UnslothVisionDataCollator</td><td>Data collator for image/text batching</td></tr>
+              <tr><td><code>train_dataset</code></td><td>Dataset</td><td>HuggingFace dataset with image and text fields</td></tr>
+              <tr><td><code>args</code></td><td>VLMSFTConfig</td><td>Training configuration</td></tr>
+            </tbody>
+          </table>
+          <div class="api-signature" style="margin-top:12px;"><span class="api-name">trainer.train</span>() &mdash; Start training. Returns training statistics.</div>
+
+          <div class="callout" style="margin-top: 16px;">
+            <div class="callout-title">Important</div>
+            <p>Batch size is <strong>forced to 1</strong>. Images produce variable vision token counts per sample (e.g., Qwen models generate different <code>num_patches</code> per image), so batching is not possible.</p>
+          </div>
+        </div>
+
+        <div class="api-entry">
+          <h3>VLMSFTConfig</h3>
+          <div class="api-signature">
+            <span class="api-name">VLMSFTConfig</span>(<span class="api-param">per_device_train_batch_size</span><span class="api-default">=1</span>, <span class="api-param">max_steps</span><span class="api-default">=30</span>, <span class="api-param">learning_rate</span><span class="api-default">=2e-4</span>, <span class="api-param">output_dir</span><span class="api-default">="./vlm_outputs"</span>, <span class="api-param">train_on_completions</span><span class="api-default">=True</span>, <span class="api-param">gradient_accumulation_steps</span><span class="api-default">=4</span>, ...)
+          </div>
+          <p>Training configuration for VLM fine-tuning. Compatible with TRL&rsquo;s SFTConfig parameters.</p>
+          <table class="api-params">
+            <thead><tr><th>Parameter</th><th>Default</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>per_device_train_batch_size</code></td><td><code>1</code></td><td>Batch size (forced to 1 for VLM)</td></tr>
+              <tr><td><code>max_steps</code></td><td><code>30</code></td><td>Total training steps</td></tr>
+              <tr><td><code>learning_rate</code></td><td><code>2e-4</code></td><td>Peak learning rate</td></tr>
+              <tr><td><code>output_dir</code></td><td><code>"./vlm_outputs"</code></td><td>Directory for checkpoints and logs</td></tr>
+              <tr><td><code>train_on_completions</code></td><td><code>True</code></td><td>Compute loss only on assistant response tokens</td></tr>
+              <tr><td><code>gradient_accumulation_steps</code></td><td><code>4</code></td><td>Number of steps to accumulate gradients before updating</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="api-entry">
+          <h3>UnslothVisionDataCollator</h3>
+          <div class="api-signature">
+            <span class="api-name">UnslothVisionDataCollator</span>(<span class="api-param">model</span>, <span class="api-param">processor</span>)
+          </div>
+          <p>Data collator for vision tasks. Handles image preprocessing, vision token insertion via the processor&rsquo;s chat template, and batch preparation for VLM training.</p>
+          <table class="api-params">
+            <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>model</code></td><td>VLMModelWrapper</td><td>The vision-language model</td></tr>
+              <tr><td><code>processor</code></td><td>Processor</td><td>Processor from <code>FastVisionModel.from_pretrained()</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ===== Post-Training ===== -->
+      <section class="section" id="post-training">
+        <div class="section-label">Post-Training</div>
+        <h2 style="margin-top: 0;">Save, load, and merge</h2>
+        <p>After training, you can save adapters for later use, reload them into a fresh model, or merge LoRA weights into the base model.</p>
+
+        <h3>Save adapters</h3>
+        <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python"># Save LoRA adapters only (small files)
+model.save_pretrained("./vlm_adapters")</code></pre>
+        </div>
+
+        <h3>Load adapters</h3>
+        <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python"># Load adapters into a fresh model
+model, processor = FastVisionModel.from_pretrained(
+    "mlx-community/Qwen2.5-VL-3B-Instruct-4bit",
+    max_seq_length=1024,
+)
+model.load_adapter("./vlm_adapters")</code></pre>
+        </div>
+
+        <h3>Merge LoRA into base model</h3>
+        <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python"># Fuse LoRA weights and save full model
+model.save_pretrained_merged("./vlm_merged", processor)</code></pre>
+        </div>
+      </section>
+
+      <!-- ===== Examples ===== -->
+      <section class="section" id="examples">
+        <div class="section-label">Examples</div>
+        <h2 style="margin-top: 0;">Working examples</h2>
+        <p>Complete scripts you can run directly.</p>
+
+        <div class="example-grid">
+          <div class="example-card">
+            <h4>10 &mdash; Qwen3.5 Vision Fine-Tuning</h4>
+            <p>Fine-tune Qwen2.5-VL on image-text pairs with LoRA on both vision and language layers.</p>
+            <div class="example-tags"><span class="example-tag">VLM</span><span class="example-tag">Vision</span><span class="example-tag">Qwen</span></div>
+            <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/10_qwen35_vision_finetuning.py" target="_blank">View source &rarr;</a></p>
+          </div>
+
+          <div class="example-card">
+            <h4>11 &mdash; Qwen3.5 Text-Only VLM Fine-Tuning</h4>
+            <p>Fine-tune a VLM on text-only data without images. Useful for improving the language component.</p>
+            <div class="example-tags"><span class="example-tag">VLM</span><span class="example-tag">Text-Only</span><span class="example-tag">Qwen</span></div>
+            <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/11_qwen35_text_only_vlm.py" target="_blank">View source &rarr;</a></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== Tips ===== -->
+      <section class="section" id="tips">
+        <div class="section-label">Tips</div>
+        <h2 style="margin-top: 0;">Best practices</h2>
+
+        <div class="callout">
+          <div class="callout-title">Batch size must be 1</div>
+          <p>VLM training is forced to <code>batch_size=1</code>. Each image produces a different number of vision tokens (variable <code>num_patches</code>), so samples cannot be stacked into batches. Use <code>gradient_accumulation_steps</code> to simulate larger effective batch sizes.</p>
+        </div>
+
+        <div class="callout">
+          <div class="callout-title">Qwen3.5 think tags</div>
+          <p>Qwen3.5 models generate <code>&lt;think&gt;...&lt;/think&gt;</code> reasoning tags in their output. MLX-Tune automatically strips these from <code>generate()</code> results so you get clean responses.</p>
+        </div>
+
+        <div class="callout">
+          <div class="callout-title">Text-only VLM training</div>
+          <p>You can fine-tune a VLM on text-only data (no images needed). This is useful for improving the language model component while preserving vision capabilities.</p>
+        </div>
+
+        <div class="callout">
+          <div class="callout-title">Response-only training</div>
+          <p>Enabled by default via <code>train_on_completions=True</code> in <code>VLMSFTConfig</code>. Loss is computed only on assistant response tokens, not on the prompt or system message. This significantly improves training quality.</p>
+        </div>
+
+        <div class="callout">
+          <div class="callout-title">Training vs inference mode</div>
+          <p>Always call <code>FastVisionModel.for_training(model)</code> before training and <code>FastVisionModel.for_inference(model)</code> before generation. Forgetting this will cause incorrect behavior or errors.</p>
+        </div>
+
+        <div class="callout">
+          <div class="callout-title">Memory requirements</div>
+          <p>16 GB+ unified RAM recommended for 3B VLMs. Larger models (7B+) need 32 GB+ or more. Use 4-bit quantized models from <code>mlx-community/</code> to reduce memory usage.</p>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <p>Community project, not affiliated with Unsloth AI or Apple.</p>
+        <p><a href="https://github.com/ARahim3/mlx-tune">GitHub</a> &middot; <a href="https://pypi.org/project/mlx-tune/">PyPI</a> &middot; Apache 2.0 License</p>
+      </footer>
+    </main>
+  </div>
+
+  <script src="assets/js/prism.min.js"></script>
+  <script src="assets/js/prism-python.min.js"></script>
+  <script src="assets/js/prism-bash.min.js"></script>
+  <script src="assets/js/main.js"></script>
+</body>
+</html>

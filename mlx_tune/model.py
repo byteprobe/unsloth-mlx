@@ -279,6 +279,50 @@ class FastLanguageModel:
 
         return model
 
+    @staticmethod
+    def convert(
+        hf_model: str,
+        output_dir: str = "mlx_model",
+        quantize: bool = False,
+        q_bits: int = 4,
+        dtype: Optional[str] = None,
+        upload_repo: Optional[str] = None,
+    ):
+        """
+        Convert a HuggingFace model to MLX format.
+
+        Args:
+            hf_model: HuggingFace model ID (e.g., "meta-llama/Llama-3-8B")
+            output_dir: Output directory for MLX model
+            quantize: Whether to quantize the model
+            q_bits: Quantization bits (4, 8)
+            dtype: Data type ("float16", "bfloat16", "float32")
+            upload_repo: Optional HF repo to upload converted model
+
+        Example:
+            >>> FastLanguageModel.convert(
+            ...     "meta-llama/Llama-3-8B",
+            ...     output_dir="./llama3-mlx",
+            ...     quantize=True,
+            ...     q_bits=4,
+            ... )
+        """
+        try:
+            from mlx_lm import convert
+        except ImportError:
+            raise ImportError("mlx-lm is required for model conversion: uv pip install mlx-lm")
+
+        print(f"Converting model: {hf_model} -> {output_dir}")
+        convert(
+            hf_path=hf_model,
+            mlx_path=output_dir,
+            quantize=quantize,
+            q_bits=q_bits,
+            dtype=dtype,
+            upload_repo=upload_repo,
+        )
+        print(f"Conversion complete: {output_dir}")
+
 
 class MLXModelWrapper:
     """

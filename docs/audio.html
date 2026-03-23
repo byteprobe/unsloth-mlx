@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audio Fine-Tuning &mdash; MLX-Tune Docs</title>
+  <meta name="description" content="TTS and STT fine-tuning on Apple Silicon with MLX-Tune. Orpheus, Whisper, SNAC codec.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230d1117'/><text x='50%25' y='73%25' text-anchor='middle' font-family='system-ui,-apple-system,sans-serif' font-weight='900' font-size='22' fill='%23e6edf3'>m</text></svg>">
+  <meta property="og:title" content="Audio Fine-Tuning - MLX-Tune Docs">
+  <meta property="og:image" content="https://arahim3.github.io/mlx-tune/assets/img/og-image.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/prism-dark.css">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+  <nav class="top-nav">
+    <div class="nav-inner">
+      <a href="index.html" class="nav-logo"><img src="assets/img/logo.png" alt="mlx-tune"></a>
+      <ul class="nav-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="llm.html">LLM</a></li>
+        <li><a href="vlm.html">VLM</a></li>
+        <li><a href="audio.html" class="active">Audio</a></li>
+        <li><a href="workflow.html">Workflow</a></li>
+        <li><a href="troubleshooting.html">Troubleshooting</a></li>
+      </ul>
+      <div class="nav-right">
+        <a href="https://github.com/ARahim3/mlx-tune" class="github-link" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" fill="currentColor"/></svg></a>
+        <button class="theme-toggle" aria-label="Toggle theme"></button>
+        <button class="mobile-toggle" aria-label="Menu">&#9776;</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+    <aside class="sidebar">
+      <div class="sidebar-title">On This Page</div>
+      <ul class="sidebar-nav">
+        <li><a href="#install">Installation</a></li>
+        <li><a href="#tts">Text-to-Speech</a></li>
+        <li class="sub-item"><a href="#FastTTSModel">FastTTSModel</a></li>
+        <li class="sub-item"><a href="#TTSSFTTrainer">TTSSFTTrainer</a></li>
+        <li><a href="#stt">Speech-to-Text</a></li>
+        <li class="sub-item"><a href="#FastSTTModel">FastSTTModel</a></li>
+        <li class="sub-item"><a href="#STTSFTTrainer">STTSFTTrainer</a></li>
+        <li><a href="#post-training">Post-Training</a></li>
+        <li><a href="#examples">Examples</a></li>
+        <li><a href="#tips">Tips</a></li>
+      </ul>
+    </aside>
+
+    <main class="content">
+      <h1>Audio Fine-Tuning</h1>
+      <p>Fine-tune TTS and STT models on Apple Silicon. MLX-Tune is the first library to offer native LoRA fine-tuning for audio models on MLX &mdash; train text-to-speech and speech-to-text models directly on your Mac.</p>
+
+      <!-- ===== Installation ===== -->
+      <section class="section" id="install">
+        <div class="section-label">Setup</div>
+        <h2 style="margin-top: 0;">Installation</h2>
+        <p>Audio fine-tuning requires the optional <code>[audio]</code> extra, which installs <code>mlx-audio</code> and <code>soundfile</code>.</p>
+
+        <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-bash">uv pip install 'mlx-tune[audio]'</code></pre>
+        </div>
+
+        <div class="callout">
+          <div class="callout-title">Requirements</div>
+          <p>Requires <code>mlx-audio&gt;=0.4.0</code> and <code>soundfile&gt;=0.12.0</code>. These are installed automatically with the <code>[audio]</code> extra. Apple Silicon Mac with 16 GB+ unified RAM recommended for audio training.</p>
+        </div>
+      </section>
+
+      <!-- ===== Text-to-Speech ===== -->
+      <div class="api-module" id="tts">
+        <div class="api-module-header">
+          <h2 style="margin:0;">Text-to-Speech</h2>
+          <span class="module-path">mlx_tune.tts</span>
+        </div>
+
+        <p>Orpheus is a Llama-based language model that uses the SNAC codec to convert audio waveforms into discrete tokens. Fine-tuning works like standard LLM training &mdash; text and audio tokens are concatenated into a single sequence, and LoRA adapters are applied to the transformer layers.</p>
+
+        <h3>Quick Start</h3>
+        <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">from mlx_tune import FastTTSModel, TTSSFTTrainer, TTSSFTConfig, TTSDataCollator
+from datasets import load_dataset, Audio
+
+model, tokenizer = FastTTSModel.from_pretrained(
+    "mlx-community/orpheus-3b-0.1-ft-bf16",
+    codec_model="mlx-community/snac_24khz",
+)
+model = FastTTSModel.get_peft_model(model, r=16, lora_alpha=16)
+
+dataset = load_dataset("MrDragonFox/Elise", split="train[:100]")
+dataset = dataset.cast_column("audio", Audio(sampling_rate=24000))
+
+collator = TTSDataCollator(model, tokenizer)
+trainer = TTSSFTTrainer(
+    model=model, tokenizer=tokenizer,
+    data_collator=collator, train_dataset=dataset,
+    args=TTSSFTConfig(output_dir="./tts_output", max_steps=60),
+)
+trainer.train()
+
+FastTTSModel.for_inference(model)
+audio = model.generate("Hello, how are you today?")
+import soundfile as sf
+sf.write("output.wav", audio, 24000)</code></pre>
+        </div>
+
+        <!-- FastTTSModel -->
+        <div class="api-entry" id="FastTTSModel">
+          <h3>FastTTSModel</h3>
+          <p>Main entry point for loading and configuring TTS models. Supports Orpheus-3B and compatible Llama-based audio models.</p>
+
+          <h4>FastTTSModel.from_pretrained()</h4>
+          <div class="api-signature">
+            <span class="api-name">FastTTSModel.from_pretrained</span>(<span class="api-param">model_name</span>, <span class="api-param">max_seq_length</span><span class="api-default">=2048</span>, <span class="api-param">codec_model</span><span class="api-default">="mlx-community/snac_24khz"</span>, <span class="api-param">load_in_4bit</span><span class="api-default">=False</span>, ...) &rarr; <span class="api-param">Tuple[TTSModelWrapper, Tokenizer]</span>
+          </div>
+          <p>Load a pretrained TTS model and SNAC audio codec.</p>
+          <table class="api-params">
+            <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>model_name</code></td><td>str</td><td>HuggingFace model ID (e.g., <code>"mlx-community/orpheus-3b-0.1-ft-bf16"</code>) or local path</td></tr>
+              <tr><td><code>max_seq_length</code></td><td>int</td><td>Maximum sequence length for training/inference</td></tr>
+              <tr><td><code>codec_model</code></td><td>str</td><td>SNAC codec model ID. Must be MLX format</td></tr>
+              <tr><td><code>load_in_4bit</code></td><td>bool</td><td>Load model with 4-bit quantization</td></tr>
+            </tbody>
+          </table>
+
+          <h4>FastTTSModel.get_peft_model()</h4>
+          <div class="api-signature">
+            <span class="api-name">FastTTSModel.get_peft_model</span>(<span class="api-param">model</span>, <span class="api-param">r</span><span class="api-default">=16</span>, <span class="api-param">target_modules</span><span class="api-default">=None</span>, <span class="api-param">lora_alpha</span><span class="api-default">=16</span>, ...) &rarr; <span class="api-param">TTSModelWrapper</span>
+          </div>
+          <p>Add LoRA adapters to the TTS model for parameter-efficient fine-tuning.</p>
+          <table class="api-params">
+            <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>model</code></td><td>TTSModelWrapper</td><td>Model from <code>from_pretrained()</code></td></tr>
+              <tr><td><code>r</code></td><td>int</td><td>LoRA rank (higher = more parameters)</td></tr>
+              <tr><td><code>target_modules</code></td><td>list[str], optional</td><td>Modules to apply LoRA to. Default: <code>["q_proj", "k_proj", "v_proj", "o_proj"]</code></td></tr>
+              <tr><td><code>lora_alpha</code></td><td>int</td><td>LoRA scaling factor. Recommended: equal to <code>r</code></td></tr>
+            </tbody>
+          </table>
+
+          <div class="api-signature" style="margin-top:12px;"><span class="api-name">FastTTSModel.for_training</span>(<span class="api-param">model</span>) &mdash; Enable training mode</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">FastTTSModel.for_inference</span>(<span class="api-param">model</span>) &mdash; Enable inference mode</div>
+
+          <h4>FastTTSModel.convert()</h4>
+          <div class="api-signature">
+            <span class="api-name">FastTTSModel.convert</span>(<span class="api-param">hf_model</span>, <span class="api-param">output_dir</span><span class="api-default">="mlx_model"</span>, <span class="api-param">quantize</span><span class="api-default">=False</span>, <span class="api-param">q_bits</span><span class="api-default">=4</span>, <span class="api-param">dtype</span><span class="api-default">=None</span>, <span class="api-param">upload_repo</span><span class="api-default">=None</span>)
+          </div>
+          <p>Convert a HuggingFace TTS model to MLX format.</p>
+
+          <h4>TTSModelWrapper Methods</h4>
+          <div class="api-signature"><span class="api-name">model.encode_audio</span>(<span class="api-param">audio_array</span>, <span class="api-param">sr</span><span class="api-default">=24000</span>) &rarr; <span class="api-param">List[int]</span> &mdash; Encode audio waveform to SNAC token IDs</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">model.decode_audio</span>(<span class="api-param">token_ids</span>) &rarr; <span class="api-param">np.ndarray</span> &mdash; Decode SNAC token IDs back to audio waveform</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">model.generate</span>(<span class="api-param">text</span>, <span class="api-param">speaker</span><span class="api-default">=None</span>, <span class="api-param">max_tokens</span><span class="api-default">=1250</span>, ...) &rarr; <span class="api-param">np.ndarray</span> &mdash; Generate audio from text</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">model.save_pretrained</span>(<span class="api-param">output_dir</span>) &mdash; Save LoRA adapters</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">model.load_adapter</span>(<span class="api-param">adapter_path</span>) &mdash; Load saved adapters</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">model.save_pretrained_merged</span>(<span class="api-param">output_dir</span>, <span class="api-param">tokenizer</span><span class="api-default">=None</span>, <span class="api-param">push_to_hub</span><span class="api-default">=False</span>, <span class="api-param">repo_id</span><span class="api-default">=None</span>) &mdash; Save full merged model</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">model.push_to_hub</span>(<span class="api-param">repo_id</span>) &mdash; Push adapters to HuggingFace Hub</div>
+        </div>
+
+        <!-- TTSSFTTrainer -->
+        <div class="api-entry" id="TTSSFTTrainer">
+          <h3>TTSSFTTrainer</h3>
+          <div class="api-signature">
+            <span class="api-name">TTSSFTTrainer</span>(<span class="api-param">model</span>, <span class="api-param">tokenizer</span>, <span class="api-param">data_collator</span>, <span class="api-param">train_dataset</span>, <span class="api-param">args</span><span class="api-default">=None</span>)
+          </div>
+          <p>TTS fine-tuning trainer. Batch size is forced to 1 (audio sequences have variable lengths).</p>
+          <table class="api-params">
+            <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>model</code></td><td>TTSModelWrapper</td><td>Model with LoRA adapters configured</td></tr>
+              <tr><td><code>tokenizer</code></td><td>Tokenizer</td><td>Tokenizer from <code>from_pretrained()</code></td></tr>
+              <tr><td><code>data_collator</code></td><td>TTSDataCollator</td><td>Collator for encoding audio</td></tr>
+              <tr><td><code>train_dataset</code></td><td>Dataset</td><td>Dataset with <code>audio</code> and <code>text</code> columns</td></tr>
+              <tr><td><code>args</code></td><td>TTSSFTConfig</td><td>Training configuration</td></tr>
+            </tbody>
+          </table>
+
+          <h3 style="margin-top:24px;">TTSSFTConfig</h3>
+          <div class="api-signature">
+            <span class="api-name">TTSSFTConfig</span>(<span class="api-param">per_device_train_batch_size</span><span class="api-default">=1</span>, <span class="api-param">gradient_accumulation_steps</span><span class="api-default">=4</span>, <span class="api-param">max_steps</span><span class="api-default">=60</span>, <span class="api-param">learning_rate</span><span class="api-default">=2e-4</span>, <span class="api-param">output_dir</span><span class="api-default">="./tts_outputs"</span>, <span class="api-param">sample_rate</span><span class="api-default">=24000</span>, <span class="api-param">train_on_completions</span><span class="api-default">=True</span>, ...)
+          </div>
+          <p>TTS-specific training configuration. Extends SFTConfig with audio parameters.</p>
+          <table class="api-params">
+            <thead><tr><th>Parameter</th><th>Default</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>per_device_train_batch_size</code></td><td><code>1</code></td><td>Forced to 1 for audio training</td></tr>
+              <tr><td><code>gradient_accumulation_steps</code></td><td><code>4</code></td><td>Number of gradient accumulation steps</td></tr>
+              <tr><td><code>max_steps</code></td><td><code>60</code></td><td>Total training steps</td></tr>
+              <tr><td><code>learning_rate</code></td><td><code>2e-4</code></td><td>Peak learning rate</td></tr>
+              <tr><td><code>sample_rate</code></td><td><code>24000</code></td><td>Audio sample rate in Hz</td></tr>
+              <tr><td><code>train_on_completions</code></td><td><code>True</code></td><td>Train only on audio tokens (not text prompt)</td></tr>
+            </tbody>
+          </table>
+
+          <h3 style="margin-top:24px;">TTSDataCollator</h3>
+          <div class="api-signature">
+            <span class="api-name">TTSDataCollator</span>(<span class="api-param">model</span>, <span class="api-param">tokenizer</span>)
+          </div>
+          <p>Data collator for TTS training. Encodes audio via the SNAC codec, tokenizes text prompts, builds concatenated sequences, and masks prompt tokens so loss is computed only on audio outputs.</p>
+        </div>
+      </div>
+
+      <!-- ===== Speech-to-Text ===== -->
+      <div class="api-module" id="stt">
+        <div class="api-module-header">
+          <h2 style="margin:0;">Speech-to-Text</h2>
+          <span class="module-path">mlx_tune.stt</span>
+        </div>
+
+        <p>Whisper is an encoder-decoder model. The encoder processes mel spectrograms from audio input, and the decoder generates text tokens autoregressively. LoRA adapters are applied to both encoder and decoder attention blocks (<code>query</code>, <code>key</code>, <code>value</code>, <code>out</code> projections in self-attention and cross-attention).</p>
+
+        <h3>Quick Start</h3>
+        <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">from mlx_tune import FastSTTModel, STTSFTTrainer, STTSFTConfig, STTDataCollator
+from datasets import load_dataset, Audio
+
+model, processor = FastSTTModel.from_pretrained(
+    "mlx-community/whisper-tiny-asr-fp16"
+)
+model = FastSTTModel.get_peft_model(
+    model, r=16, finetune_encoder=True, finetune_decoder=True,
+)
+
+dataset = load_dataset("mozilla-foundation/common_voice_11_0", "en",
+                       split="train[:100]", trust_remote_code=True)
+dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
+
+collator = STTDataCollator(model, processor)
+trainer = STTSFTTrainer(
+    model=model, processor=processor,
+    data_collator=collator, train_dataset=dataset,
+    args=STTSFTConfig(output_dir="./stt_output", max_steps=100),
+)
+trainer.train()
+
+FastSTTModel.for_inference(model)
+result = model.transcribe(audio_array)
+print(result)</code></pre>
+        </div>
+
+        <!-- FastSTTModel -->
+        <div class="api-entry" id="FastSTTModel">
+          <h3>FastSTTModel</h3>
+          <p>Main entry point for loading and configuring STT models. Supports Whisper variants available in MLX format.</p>
+
+          <h4>FastSTTModel.from_pretrained()</h4>
+          <div class="api-signature">
+            <span class="api-name">FastSTTModel.from_pretrained</span>(<span class="api-param">model_name</span>, <span class="api-param">max_seq_length</span><span class="api-default">=448</span>, ...) &rarr; <span class="api-param">Tuple[STTModelWrapper, STTProcessor]</span>
+          </div>
+          <p>Load a pretrained Whisper model. Returns model wrapper and processor (not tokenizer).</p>
+          <table class="api-params">
+            <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>model_name</code></td><td>str</td><td>HuggingFace model ID (e.g., <code>"mlx-community/whisper-tiny-asr-fp16"</code>) or local path</td></tr>
+              <tr><td><code>max_seq_length</code></td><td>int</td><td>Maximum decoder sequence length</td></tr>
+            </tbody>
+          </table>
+
+          <h4>FastSTTModel.get_peft_model()</h4>
+          <div class="api-signature">
+            <span class="api-name">FastSTTModel.get_peft_model</span>(<span class="api-param">model</span>, <span class="api-param">r</span><span class="api-default">=16</span>, <span class="api-param">finetune_encoder</span><span class="api-default">=True</span>, <span class="api-param">finetune_decoder</span><span class="api-default">=True</span>, <span class="api-param">lora_alpha</span><span class="api-default">=16</span>, ...) &rarr; <span class="api-param">STTModelWrapper</span>
+          </div>
+          <p>Add LoRA adapters to encoder and/or decoder attention layers.</p>
+          <table class="api-params">
+            <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>model</code></td><td>STTModelWrapper</td><td>Model from <code>from_pretrained()</code></td></tr>
+              <tr><td><code>r</code></td><td>int</td><td>LoRA rank</td></tr>
+              <tr><td><code>finetune_encoder</code></td><td>bool</td><td>Apply LoRA to encoder attention blocks</td></tr>
+              <tr><td><code>finetune_decoder</code></td><td>bool</td><td>Apply LoRA to decoder attention blocks</td></tr>
+              <tr><td><code>lora_alpha</code></td><td>int</td><td>LoRA scaling factor. Recommended: equal to <code>r</code></td></tr>
+            </tbody>
+          </table>
+
+          <div class="api-signature" style="margin-top:12px;"><span class="api-name">FastSTTModel.for_training</span>(<span class="api-param">model</span>) &mdash; Enable training mode</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">FastSTTModel.for_inference</span>(<span class="api-param">model</span>) &mdash; Enable inference mode</div>
+
+          <h4>FastSTTModel.convert()</h4>
+          <div class="api-signature">
+            <span class="api-name">FastSTTModel.convert</span>(<span class="api-param">hf_model</span>, <span class="api-param">output_dir</span><span class="api-default">="mlx_model"</span>, <span class="api-param">quantize</span><span class="api-default">=False</span>, <span class="api-param">q_bits</span><span class="api-default">=4</span>, <span class="api-param">dtype</span><span class="api-default">=None</span>, <span class="api-param">upload_repo</span><span class="api-default">=None</span>)
+          </div>
+          <p>Convert a HuggingFace Whisper model to MLX format. Uses <code>mlx_audio.convert</code> with <code>model_domain="stt"</code>.</p>
+
+          <h4>STTModelWrapper Methods</h4>
+          <div class="api-signature"><span class="api-name">model.transcribe</span>(<span class="api-param">audio</span>, <span class="api-param">language</span><span class="api-default">=None</span>, ...) &rarr; <span class="api-param">str</span> &mdash; Transcribe audio to text</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">model.save_pretrained</span>(<span class="api-param">output_dir</span>) &mdash; Save LoRA adapters</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">model.load_adapter</span>(<span class="api-param">adapter_path</span>) &mdash; Load saved adapters</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">model.save_pretrained_merged</span>(<span class="api-param">output_dir</span>, <span class="api-param">processor</span><span class="api-default">=None</span>, <span class="api-param">push_to_hub</span><span class="api-default">=False</span>, <span class="api-param">repo_id</span><span class="api-default">=None</span>) &mdash; Save full merged model</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">model.push_to_hub</span>(<span class="api-param">repo_id</span>) &mdash; Push adapters to HuggingFace Hub</div>
+        </div>
+
+        <!-- STTSFTTrainer -->
+        <div class="api-entry" id="STTSFTTrainer">
+          <h3>STTSFTTrainer</h3>
+          <div class="api-signature">
+            <span class="api-name">STTSFTTrainer</span>(<span class="api-param">model</span>, <span class="api-param">processor</span>, <span class="api-param">data_collator</span>, <span class="api-param">train_dataset</span>, <span class="api-param">args</span><span class="api-default">=None</span>)
+          </div>
+          <p>STT fine-tuning trainer. Uses sequence-to-sequence training with encoder-decoder architecture. Batch size is forced to 1.</p>
+          <table class="api-params">
+            <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>model</code></td><td>STTModelWrapper</td><td>Model with LoRA adapters configured</td></tr>
+              <tr><td><code>processor</code></td><td>STTProcessor</td><td>Processor from <code>from_pretrained()</code></td></tr>
+              <tr><td><code>data_collator</code></td><td>STTDataCollator</td><td>Collator for computing mel spectrograms</td></tr>
+              <tr><td><code>train_dataset</code></td><td>Dataset</td><td>Dataset with <code>audio</code> and transcript columns</td></tr>
+              <tr><td><code>args</code></td><td>STTSFTConfig</td><td>Training configuration</td></tr>
+            </tbody>
+          </table>
+
+          <h3 style="margin-top:24px;">STTSFTConfig</h3>
+          <div class="api-signature">
+            <span class="api-name">STTSFTConfig</span>(<span class="api-param">per_device_train_batch_size</span><span class="api-default">=1</span>, <span class="api-param">gradient_accumulation_steps</span><span class="api-default">=4</span>, <span class="api-param">max_steps</span><span class="api-default">=100</span>, <span class="api-param">learning_rate</span><span class="api-default">=1e-5</span>, <span class="api-param">output_dir</span><span class="api-default">="./stt_outputs"</span>, <span class="api-param">sample_rate</span><span class="api-default">=16000</span>, <span class="api-param">language</span><span class="api-default">="en"</span>, ...)
+          </div>
+          <p>STT-specific training configuration. Extends SFTConfig with audio parameters.</p>
+          <table class="api-params">
+            <thead><tr><th>Parameter</th><th>Default</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>per_device_train_batch_size</code></td><td><code>1</code></td><td>Forced to 1 for audio training</td></tr>
+              <tr><td><code>gradient_accumulation_steps</code></td><td><code>4</code></td><td>Number of gradient accumulation steps</td></tr>
+              <tr><td><code>max_steps</code></td><td><code>100</code></td><td>Total training steps</td></tr>
+              <tr><td><code>learning_rate</code></td><td><code>1e-5</code></td><td>Peak learning rate (lower than TTS)</td></tr>
+              <tr><td><code>sample_rate</code></td><td><code>16000</code></td><td>Audio sample rate in Hz (Whisper uses 16 kHz)</td></tr>
+              <tr><td><code>language</code></td><td><code>"en"</code></td><td>Target language for transcription</td></tr>
+            </tbody>
+          </table>
+
+          <h3 style="margin-top:24px;">STTDataCollator</h3>
+          <div class="api-signature">
+            <span class="api-name">STTDataCollator</span>(<span class="api-param">model</span>, <span class="api-param">processor</span>)
+          </div>
+          <p>Data collator for STT training. Computes 80-bin log-mel spectrograms from audio, pads or trims to 30 seconds (480,000 samples), and tokenizes transcription targets.</p>
+
+          <h3 style="margin-top:24px;">STTProcessor</h3>
+          <div class="api-signature">
+            <span class="api-name">STTProcessor</span>(<span class="api-param">model</span>, <span class="api-param">tokenizer</span><span class="api-default">=None</span>, <span class="api-param">hf_processor</span><span class="api-default">=None</span>)
+          </div>
+          <p>Processor wrapper for STT models. Provides mel spectrogram computation and text tokenization.</p>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">processor.compute_mel</span>(<span class="api-param">audio</span>) &rarr; <span class="api-param">mx.array</span> &mdash; Compute mel spectrogram from audio</div>
+          <div class="api-signature" style="margin-top:8px;"><span class="api-name">processor.tokenize</span>(<span class="api-param">text</span>) &rarr; <span class="api-param">List[int]</span> &mdash; Tokenize transcription text</div>
+        </div>
+      </div>
+
+      <!-- ===== Post-Training ===== -->
+      <section class="section" id="post-training">
+        <div class="section-label">After Training</div>
+        <h2 style="margin-top: 0;">Post-Training</h2>
+        <p>Save, merge, convert, and share your fine-tuned audio models. These operations work the same for both TTS and STT.</p>
+
+        <h4>Save adapters</h4>
+        <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python"># Save LoRA adapters only (small, shareable)
+model.save_pretrained("./adapters")</code></pre>
+        </div>
+
+        <h4>Merge LoRA into base model</h4>
+        <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python"># Fuse LoRA weights into the base model and save
+model.save_pretrained_merged("./merged_model")</code></pre>
+        </div>
+
+        <h4>Convert HuggingFace model to MLX</h4>
+        <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python"># Convert and optionally quantize a HF model
+FastTTSModel.convert(
+    "canopylabs/orpheus-3b",
+    quantize=True,
+    q_bits=4,
+)</code></pre>
+        </div>
+
+        <h4>Push to HuggingFace Hub</h4>
+        <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">model.push_to_hub(
+    "username/my-model",
+    token="hf_...",
+    private=True,
+)</code></pre>
+        </div>
+      </section>
+
+      <!-- ===== Examples ===== -->
+      <section class="section" id="examples">
+        <div class="section-label">Learn by Example</div>
+        <h2 style="margin-top: 0;">Examples</h2>
+
+        <div class="example-grid">
+          <div class="example-card">
+            <h4>12 &mdash; Orpheus TTS Fine-Tuning</h4>
+            <p>Fine-tune Orpheus-3B for text-to-speech with SNAC audio codec. Includes data loading, training, and inference.</p>
+            <div class="example-tags"><span class="example-tag">TTS</span><span class="example-tag">Orpheus</span><span class="example-tag">SNAC</span></div>
+            <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/12_orpheus_tts_finetuning.py" target="_blank">View on GitHub &rarr;</a></p>
+          </div>
+
+          <div class="example-card">
+            <h4>13 &mdash; Whisper STT Fine-Tuning</h4>
+            <p>Fine-tune Whisper for speech-to-text transcription. Encoder-decoder LoRA with mel spectrogram inputs.</p>
+            <div class="example-tags"><span class="example-tag">STT</span><span class="example-tag">Whisper</span><span class="example-tag">Transcription</span></div>
+            <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/13_whisper_stt_finetuning.py" target="_blank">View on GitHub &rarr;</a></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== Tips ===== -->
+      <section class="section" id="tips">
+        <div class="section-label">Good to Know</div>
+        <h2 style="margin-top: 0;">Tips</h2>
+
+        <div class="callout">
+          <div class="callout-title">Batch Size</div>
+          <p>Audio training forces <code>batch_size=1</code>. Audio sequences have variable lengths, so batching is not supported. Use <code>gradient_accumulation_steps</code> to simulate larger effective batch sizes.</p>
+        </div>
+
+        <div class="callout">
+          <div class="callout-title">SNAC Codec</div>
+          <p>Always use <code>mlx-community/snac_24khz</code> for the SNAC codec &mdash; this is the MLX-format version with safetensors weights. The original <code>hubertsiuzdak/snac_24khz</code> only has PyTorch weights and will not work.</p>
+        </div>
+
+        <div class="callout">
+          <div class="callout-title">Whisper Models</div>
+          <p>Use the <code>mlx-community/whisper-*-asr-fp16</code> model variants. These include the required <code>preprocessor_config.json</code> and <code>tokenizer.json</code> files needed for training.</p>
+        </div>
+
+        <div class="callout">
+          <div class="callout-title">Sample Rates</div>
+          <p>TTS (Orpheus) uses <strong>24 kHz</strong>. STT (Whisper) uses <strong>16 kHz</strong>. Always cast your dataset audio column to the correct sample rate before training: <code>dataset.cast_column("audio", Audio(sampling_rate=...))</code>.</p>
+        </div>
+
+        <div class="callout">
+          <div class="callout-title">Memory</div>
+          <p><strong>16 GB+</strong> unified RAM recommended for audio training. Orpheus-3B in 4-bit quantization fits in ~8 GB; full precision requires ~12 GB. Whisper-tiny fits easily in 8 GB.</p>
+        </div>
+
+        <div class="callout">
+          <div class="callout-title">Response-Only Training</div>
+          <p>TTS training uses response-only training by default (<code>train_on_completions=True</code>). Loss is computed only on audio tokens, not on the text prompt &mdash; this matches how the model is used at inference time.</p>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <p>Community project, not affiliated with Unsloth AI or Apple.</p>
+        <p><a href="https://github.com/ARahim3/mlx-tune">GitHub</a> &middot; <a href="https://pypi.org/project/mlx-tune/">PyPI</a> &middot; Apache 2.0 License</p>
+      </footer>
+    </main>
+  </div>
+
+  <script src="assets/js/prism.min.js"></script>
+  <script src="assets/js/prism-python.min.js"></script>
+  <script src="assets/js/prism-bash.min.js"></script>
+  <script src="assets/js/main.js"></script>
+</body>
+</html>

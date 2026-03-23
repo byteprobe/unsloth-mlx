@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MLX-Tune &mdash; Fine-tune LLMs on Apple Silicon</title>
-  <meta name="description" content="Fine-tune LLMs on Apple Silicon with MLX. SFT, DPO, GRPO, and Vision training. Unsloth-compatible API.">
+  <title>MLX-Tune &mdash; Fine-tune LLMs, Vision, and Audio models on Apple Silicon</title>
+  <meta name="description" content="Fine-tune LLMs, Vision, TTS, and STT models on Apple Silicon with MLX. Unsloth-compatible API.">
 
   <!-- Favicon: bold "m" in SVG -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230d1117'/><text x='50%25' y='73%25' text-anchor='middle' font-family='system-ui,-apple-system,sans-serif' font-weight='900' font-size='22' fill='%23e6edf3'>m</text></svg>">
@@ -12,13 +12,13 @@
 
   <!-- Open Graph / Social -->
   <meta property="og:type" content="website">
-  <meta property="og:title" content="MLX-Tune - Fine-tune LLMs on Apple Silicon">
-  <meta property="og:description" content="Fine-tune LLMs on Apple Silicon with MLX. SFT, DPO, GRPO, and Vision training. Unsloth-compatible API.">
+  <meta property="og:title" content="MLX-Tune - Fine-tune LLMs, Vision, and Audio models on Apple Silicon">
+  <meta property="og:description" content="Fine-tune LLMs, Vision, TTS, and STT models on Apple Silicon with MLX. Unsloth-compatible API.">
   <meta property="og:image" content="https://arahim3.github.io/mlx-tune/assets/img/og-image.png">
   <meta property="og:url" content="https://arahim3.github.io/mlx-tune/">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="MLX-Tune - Fine-tune LLMs on Apple Silicon">
-  <meta name="twitter:description" content="Fine-tune LLMs on Apple Silicon with MLX. SFT, DPO, GRPO, and Vision training.">
+  <meta name="twitter:title" content="MLX-Tune - Fine-tune LLMs, Vision, and Audio models on Apple Silicon">
+  <meta name="twitter:description" content="Fine-tune LLMs, Vision, TTS, and STT models on Apple Silicon with MLX.">
   <meta name="twitter:image" content="https://arahim3.github.io/mlx-tune/assets/img/og-image.png">
 
   <!-- Fonts -->
@@ -120,10 +120,11 @@
       </a>
 
       <ul class="nav-links">
-        <li><a href="index.html" class="active">Getting Started</a></li>
+        <li><a href="index.html" class="active">Home</a></li>
+        <li><a href="llm.html">LLM</a></li>
+        <li><a href="vlm.html">VLM</a></li>
+        <li><a href="audio.html">Audio</a></li>
         <li><a href="workflow.html">Workflow</a></li>
-        <li><a href="examples.html">Examples</a></li>
-        <li><a href="api.html">API</a></li>
         <li><a href="troubleshooting.html">Troubleshooting</a></li>
       </ul>
 
@@ -143,10 +144,10 @@
 
       <!-- ===== Hero ===== -->
       <section class="hero hero-glow">
-        <span class="hero-version">v0.4.6</span>
+        <span class="hero-version">v0.4.7</span>
         <img src="assets/img/logo.png" alt="MLX-Tune" class="hero-logo">
-        <h1 class="hero-tagline">Fine-tune LLMs on your Mac with Apple Silicon</h1>
-        <p class="hero-subtitle">SFT, DPO, GRPO, and Vision fine-tuning &mdash; natively on MLX. Unsloth-compatible API.</p>
+        <h1 class="hero-tagline">Fine-tune LLMs, Vision, and Audio models on your Mac</h1>
+        <p class="hero-subtitle">SFT, DPO, GRPO, Vision, TTS, and STT fine-tuning &mdash; natively on MLX. Unsloth-compatible API.</p>
 
         <div class="hero-install" data-copy="pip install mlx-tune" role="button" tabindex="0" aria-label="Copy install command">
           <span class="copied-tooltip">Copied!</span>
@@ -169,7 +170,7 @@
         <div class="feature-card">
           <div class="feature-icon">&#9881;</div>
           <h3>Fine-tune Locally</h3>
-          <p>Train LLMs on M1&ndash;M5 Macs natively with Apple&rsquo;s MLX framework. No cloud GPU required.</p>
+          <p>Train LLMs, vision, and audio models on M1&ndash;M5 Macs natively with Apple&rsquo;s MLX framework. No cloud GPU required.</p>
         </div>
         <div class="feature-card">
           <div class="feature-icon">&#9618;</div>
@@ -187,6 +188,36 @@
           <p>Save to HuggingFace format, GGUF for Ollama and llama.cpp, or merged weights for deployment.</p>
         </div>
       </div>
+
+      <!-- ===== Track Cards ===== -->
+      <section class="section" id="tracks">
+        <div class="section-label">Documentation</div>
+        <h2 style="margin-top: 0;">Choose your track</h2>
+        <p>Each modality has its own guide with Quick Start, API reference, examples, and tips.</p>
+
+        <div class="features">
+          <a href="llm.html" class="feature-card" style="text-decoration:none; color:inherit; cursor:pointer;">
+            <div class="feature-icon">&#128172;</div>
+            <h3>LLM Fine-Tuning</h3>
+            <p>SFT, DPO, GRPO, KTO, SimPO. Chat templates, dataset utilities, GGUF export.</p>
+          </a>
+          <a href="vlm.html" class="feature-card" style="text-decoration:none; color:inherit; cursor:pointer;">
+            <div class="feature-icon">&#128248;</div>
+            <h3>Vision Fine-Tuning</h3>
+            <p>Qwen3.5 Vision, image+text training. LoRA on both vision encoder and language model.</p>
+          </a>
+          <a href="audio.html" class="feature-card" style="text-decoration:none; color:inherit; cursor:pointer;">
+            <div class="feature-icon">&#127911;</div>
+            <h3>Audio Fine-Tuning</h3>
+            <p>TTS (Orpheus + SNAC) and STT (Whisper). First native audio LoRA on Apple Silicon.</p>
+          </a>
+          <a href="workflow.html" class="feature-card" style="text-decoration:none; color:inherit; cursor:pointer;">
+            <div class="feature-icon">&#8644;</div>
+            <h3>Unsloth Migration</h3>
+            <p>Translate your existing Unsloth scripts. Side-by-side comparisons and config mapping.</p>
+          </a>
+        </div>
+      </section>
 
       <!-- ===== Import Comparison ===== -->
       <section class="section">
@@ -281,6 +312,12 @@ model.save_pretrained_merged("merged", tokenizer)  # Full model</code></pre>
           <pre><code class="language-bash">pip install mlx-tune</code></pre>
         </div>
 
+        <h3>With audio support (TTS/STT)</h3>
+        <div class="code-block-wrapper">
+          <button class="copy-btn">Copy</button>
+          <pre><code class="language-bash">uv pip install 'mlx-tune[audio]'</code></pre>
+        </div>
+
         <h3>From source (development)</h3>
         <div class="code-block-wrapper">
           <button class="copy-btn">Copy</button>
@@ -349,6 +386,16 @@ uv pip install -e .</code></pre>
               <td><strong>VLM SFT</strong></td>
               <td><code>VLMSFTTrainer</code></td>
               <td>Vision-Language model fine-tuning</td>
+            </tr>
+            <tr>
+              <td><strong>TTS SFT</strong></td>
+              <td><code>TTSSFTTrainer</code></td>
+              <td>Text-to-Speech fine-tuning (Orpheus)</td>
+            </tr>
+            <tr>
+              <td><strong>STT SFT</strong></td>
+              <td><code>STTSFTTrainer</code></td>
+              <td>Speech-to-Text fine-tuning (Whisper)</td>
             </tr>
           </tbody>
         </table>

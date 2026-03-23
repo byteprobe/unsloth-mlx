@@ -11,9 +11,11 @@ Supported Training Methods:
 - KTO (Kahneman-Tversky Optimization)
 - SimPO (Simple Preference Optimization)
 - VLM (Vision Language Model) fine-tuning
+- TTS (Text-to-Speech) fine-tuning
+- STT (Speech-to-Text) fine-tuning
 """
 
-__version__ = "0.4.6"  # Fix VLM save/load: proper adapter_config.json, config.json, load_adapter
+__version__ = "0.4.7"  # Add TTS (Orpheus) and STT (Whisper) fine-tuning support
 
 from mlx_tune.model import FastLanguageModel
 from mlx_tune.trainer import (
@@ -62,6 +64,25 @@ from mlx_tune.vlm import (
     VLMModelWrapper,
     UnslothVisionDataCollator,
     load_vlm_dataset,
+)
+
+# Text-to-Speech Models
+from mlx_tune.tts import (
+    FastTTSModel,
+    TTSModelWrapper,
+    TTSSFTTrainer,
+    TTSSFTConfig,
+    TTSDataCollator,
+)
+
+# Speech-to-Text Models
+from mlx_tune.stt import (
+    FastSTTModel,
+    STTModelWrapper,
+    STTSFTTrainer,
+    STTSFTConfig,
+    STTDataCollator,
+    STTProcessor,
 )
 
 # Chat Templates and Dataset Formatting (Unsloth-compatible)
@@ -119,6 +140,19 @@ __all__ = [
     "VLMSFTConfig",
     "VLMModelWrapper",
     "UnslothVisionDataCollator",
+    # Text-to-Speech Models
+    "FastTTSModel",
+    "TTSModelWrapper",
+    "TTSSFTTrainer",
+    "TTSSFTConfig",
+    "TTSDataCollator",
+    # Speech-to-Text Models
+    "FastSTTModel",
+    "STTModelWrapper",
+    "STTSFTTrainer",
+    "STTSFTConfig",
+    "STTDataCollator",
+    "STTProcessor",
     # Loss Functions
     "compute_log_probs",
     "compute_log_probs_with_lengths",

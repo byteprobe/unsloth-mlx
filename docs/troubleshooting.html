@@ -20,10 +20,11 @@
     <div class="nav-inner">
       <a href="index.html" class="nav-logo"><img src="assets/img/logo.png" alt="mlx-tune"></a>
       <ul class="nav-links">
-        <li><a href="index.html">Getting Started</a></li>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="llm.html">LLM</a></li>
+        <li><a href="vlm.html">VLM</a></li>
+        <li><a href="audio.html">Audio</a></li>
         <li><a href="workflow.html">Workflow</a></li>
-        <li><a href="examples.html">Examples</a></li>
-        <li><a href="api.html">API</a></li>
         <li><a href="troubleshooting.html">Troubleshooting</a></li>
       </ul>
       <div class="nav-right">
@@ -43,6 +44,7 @@
         <li><a href="#slow">Slow Generation</a></li>
         <li><a href="#gguf">GGUF Export</a></li>
         <li><a href="#vlm-issues">VLM Issues</a></li>
+        <li><a href="#audio-issues">Audio Issues</a></li>
         <li><a href="#help">Getting Help</a></li>
       </ul>
     </aside>
@@ -172,6 +174,59 @@ model.save_pretrained("my_adapters")
 model2, processor2 = FastVisionModel.from_pretrained("mlx-community/Qwen3.5-0.8B-bf16")
 model2.load_adapter("my_adapters")</code></pre>
 
+      <!-- Audio Issues -->
+      <h2 id="audio-issues">Audio Issues (TTS/STT)</h2>
+
+      <h3>mlx-audio not installed</h3>
+      <p>Audio fine-tuning requires the optional <code>audio</code> dependency group:</p>
+      <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-bash">uv pip install 'mlx-tune[audio]'</code></pre>
+      </div>
+
+      <h3>SNAC codec model not found</h3>
+      <p>TTS fine-tuning uses the SNAC audio codec. Always use the MLX-format model:</p>
+      <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python"># Correct: MLX safetensors format
+model, tokenizer = FastTTSModel.from_pretrained(
+    "mlx-community/orpheus-3b-0.1-ft-bf16",
+    codec_model="mlx-community/snac_24khz",  # MLX format
+)</code></pre>
+      </div>
+      <p>Do <strong>not</strong> use <code>hubertsiuzdak/snac_24khz</code> &mdash; it only has PyTorch weights (no <code>model.safetensors</code>).</p>
+
+      <h3>Whisper processor files missing</h3>
+      <p>When loading Whisper models for STT, use the <code>-asr-fp16</code> variants from mlx-community which include full processor files (<code>preprocessor_config.json</code>, <code>tokenizer.json</code>):</p>
+      <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python"># Correct: has processor files
+model, processor = FastSTTModel.from_pretrained("mlx-community/whisper-tiny-asr-fp16")
+
+# Incorrect: missing preprocessor_config.json
+# model, processor = FastSTTModel.from_pretrained("mlx-community/whisper-tiny")</code></pre>
+      </div>
+
+      <h3>Batch size must be 1</h3>
+      <p>Like VLM training, audio training forces <code>batch_size=1</code> due to variable-length audio sequences. Use <code>gradient_accumulation_steps</code> to simulate larger batches.</p>
+
+      <h3>Sample rate mismatch</h3>
+      <p>TTS (Orpheus) expects <strong>24kHz</strong> audio. STT (Whisper) expects <strong>16kHz</strong>. Always cast your dataset to the correct sample rate:</p>
+      <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">from datasets import Audio
+# TTS: 24kHz
+dataset = dataset.cast_column("audio", Audio(sampling_rate=24000))
+# STT: 16kHz
+dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))</code></pre>
+      </div>
+
+      <h3>Converting HF models to MLX</h3>
+      <p>If your model only exists in HuggingFace (PyTorch) format, convert it first:</p>
+      <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python"># LLM/TTS models
+FastTTSModel.convert("canopylabs/orpheus-3b-0.1-ft", output_dir="./orpheus-mlx")
+
+# STT models
+FastSTTModel.convert("openai/whisper-large-v3", output_dir="./whisper-mlx")</code></pre>
+      </div>
+
       <!-- Getting Help -->
       <h2 id="help">Getting Help</h2>
       <ul style="color:var(--text-secondary);line-height:2.2;">
@@ -181,6 +236,7 @@ model2.load_adapter("my_adapters")</code></pre>
         <li>MLX documentation: <a href="https://ml-explore.github.io/mlx/" target="_blank">ml-explore.github.io/mlx</a></li>
         <li>mlx-lm issues: <a href="https://github.com/ml-explore/mlx-lm/issues" target="_blank">github.com/ml-explore/mlx-lm</a></li>
         <li>mlx-vlm issues: <a href="https://github.com/Blaizzy/mlx-vlm/issues" target="_blank">github.com/Blaizzy/mlx-vlm</a></li>
+        <li>mlx-audio issues: <a href="https://github.com/Blaizzy/mlx-audio/issues" target="_blank">github.com/Blaizzy/mlx-audio</a></li>
       </ul>
 
       <footer class="footer">

@@ -20,10 +20,11 @@
     <div class="nav-inner">
       <a href="index.html" class="nav-logo"><img src="assets/img/logo.png" alt="mlx-tune"></a>
       <ul class="nav-links">
-        <li><a href="index.html">Getting Started</a></li>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="llm.html">LLM</a></li>
+        <li><a href="vlm.html">VLM</a></li>
+        <li><a href="audio.html">Audio</a></li>
         <li><a href="workflow.html">Workflow</a></li>
-        <li><a href="examples.html">Examples</a></li>
-        <li><a href="api.html">API</a></li>
         <li><a href="troubleshooting.html">Troubleshooting</a></li>
       </ul>
       <div class="nav-right">
@@ -42,6 +43,7 @@
         <li><a href="#sft">SFT Training</a></li>
         <li><a href="#rl">RL Methods</a></li>
         <li><a href="#vlm">Vision Models</a></li>
+        <li><a href="#audio">Audio Models</a></li>
       </ul>
     </aside>
 
@@ -337,6 +339,84 @@ model, processor = FastVisionModel.from_pretrained(
 # ... same training setup, just without image data</code></pre>
             </div>
             <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/11_qwen35_text_finetuning.py" target="_blank">Full source &rarr;</a></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Audio Models -->
+      <h2 id="audio">Audio Models</h2>
+      <div class="example-grid">
+
+        <div class="example-card">
+          <h4>12 &mdash; Orpheus TTS Fine-Tuning</h4>
+          <p>Fine-tune Orpheus-3B for text-to-speech with SNAC audio codec and LoRA.</p>
+          <div class="example-tags"><span class="example-tag">FastTTSModel</span><span class="example-tag">TTS</span><span class="example-tag">SNAC</span></div>
+          <button class="example-toggle">View Code</button>
+          <div class="example-code" style="display:none;">
+            <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">from mlx_tune import FastTTSModel, TTSSFTTrainer, TTSSFTConfig, TTSDataCollator
+from datasets import load_dataset, Audio
+
+model, tokenizer = FastTTSModel.from_pretrained(
+    "mlx-community/orpheus-3b-0.1-ft-bf16",
+    codec_model="mlx-community/snac_24khz",
+)
+model = FastTTSModel.get_peft_model(model, r=16, lora_alpha=16)
+
+dataset = load_dataset("MrDragonFox/Elise", split="train[:100]")
+dataset = dataset.cast_column("audio", Audio(sampling_rate=24000))
+
+collator = TTSDataCollator(model, tokenizer)
+trainer = TTSSFTTrainer(
+    model=model, tokenizer=tokenizer,
+    data_collator=collator, train_dataset=dataset,
+    args=TTSSFTConfig(output_dir="./tts_output", max_steps=60),
+)
+trainer.train()
+
+FastTTSModel.for_inference(model)
+audio = model.generate("Hello, how are you today?")
+import soundfile as sf
+sf.write("output.wav", audio, 24000)</code></pre>
+            </div>
+            <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/12_orpheus_tts_finetuning.py" target="_blank">Full source &rarr;</a></p>
+          </div>
+        </div>
+
+        <div class="example-card">
+          <h4>13 &mdash; Whisper STT Fine-Tuning</h4>
+          <p>Fine-tune Whisper for speech-to-text with encoder-decoder LoRA on Apple Silicon.</p>
+          <div class="example-tags"><span class="example-tag">FastSTTModel</span><span class="example-tag">STT</span><span class="example-tag">Whisper</span></div>
+          <button class="example-toggle">View Code</button>
+          <div class="example-code" style="display:none;">
+            <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">from mlx_tune import FastSTTModel, STTSFTTrainer, STTSFTConfig, STTDataCollator
+from datasets import load_dataset, Audio
+
+model, processor = FastSTTModel.from_pretrained(
+    "mlx-community/whisper-tiny-asr-fp16"
+)
+model = FastSTTModel.get_peft_model(
+    model, r=16, finetune_encoder=True, finetune_decoder=True,
+)
+
+dataset = load_dataset("mozilla-foundation/common_voice_11_0", "en",
+                       split="train[:100]", trust_remote_code=True)
+dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
+
+collator = STTDataCollator(model, processor)
+trainer = STTSFTTrainer(
+    model=model, processor=processor,
+    data_collator=collator, train_dataset=dataset,
+    args=STTSFTConfig(output_dir="./stt_output", max_steps=100),
+)
+trainer.train()
+
+FastSTTModel.for_inference(model)
+result = model.transcribe(audio_array)
+print(result)</code></pre>
+            </div>
+            <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/13_whisper_stt_finetuning.py" target="_blank">Full source &rarr;</a></p>
           </div>
         </div>
       </div>

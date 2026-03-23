@@ -223,6 +223,39 @@ class TestMLXModelWrapper:
         assert model.use_cache is True
 
 
+class TestFastLanguageModelConvert:
+    """Test FastLanguageModel.convert() static method."""
+
+    def test_has_convert_method(self):
+        assert hasattr(FastLanguageModel, "convert")
+        assert callable(FastLanguageModel.convert)
+
+    def test_convert_is_static(self):
+        import inspect
+        assert isinstance(
+            inspect.getattr_static(FastLanguageModel, "convert"),
+            staticmethod,
+        )
+
+    def test_convert_accepts_params(self):
+        import inspect
+        sig = inspect.signature(FastLanguageModel.convert)
+        params = list(sig.parameters.keys())
+        assert "hf_model" in params
+        assert "output_dir" in params
+        assert "quantize" in params
+        assert "q_bits" in params
+        assert "dtype" in params
+        assert "upload_repo" in params
+
+    def test_convert_defaults(self):
+        import inspect
+        sig = inspect.signature(FastLanguageModel.convert)
+        assert sig.parameters["output_dir"].default == "mlx_model"
+        assert sig.parameters["quantize"].default is False
+        assert sig.parameters["q_bits"].default == 4
+
+
 class TestGGUFExportFix:
     """Test cases for GGUF export fix (GitHub issue #3).
 
