@@ -50,6 +50,9 @@
         <li><a href="#stt">Speech-to-Text</a></li>
         <li class="sub-item"><a href="#stt-whisper">Whisper</a></li>
         <li class="sub-item"><a href="#stt-moonshine">Moonshine</a></li>
+        <li class="sub-item"><a href="#stt-qwen3asr">Qwen3-ASR</a></li>
+        <li class="sub-item"><a href="#stt-canary">Canary</a></li>
+        <li class="sub-item"><a href="#stt-voxtral">Voxtral</a></li>
         <li class="sub-item"><a href="#FastSTTModel">FastSTTModel API</a></li>
         <li class="sub-item"><a href="#STTSFTTrainer">STTSFTTrainer</a></li>
         <li><a href="#post-training">Post-Training</a></li>
@@ -111,6 +114,9 @@ brew install ffmpeg</code></pre>
             <tr><td><strong>Whisper</strong> (all sizes)</td><td>39M&ndash;1.5B</td><td>Log-mel spectrogram</td><td>16 kHz</td><td>Encoder-Decoder</td></tr>
             <tr><td><strong>Distil-Whisper</strong></td><td>756M</td><td>Log-mel spectrogram</td><td>16 kHz</td><td>Encoder-Decoder (Whisper)</td></tr>
             <tr><td><strong>Moonshine</strong></td><td>27M&ndash;330M</td><td>Raw conv frontend</td><td>16 kHz</td><td>Encoder-Decoder</td></tr>
+            <tr><td><strong>Qwen3-ASR</strong></td><td>1.7B</td><td>Audio encoder</td><td>16 kHz</td><td>Audio-LLM (Qwen3)</td></tr>
+            <tr><td><strong>NVIDIA Canary</strong></td><td>1B</td><td>Parakeet mel</td><td>16 kHz</td><td>Encoder-Decoder (Conformer)</td></tr>
+            <tr><td><strong>Voxtral</strong></td><td>3B</td><td>Mel spectrogram</td><td>16 kHz</td><td>Audio-LLM (Llama)</td></tr>
           </tbody>
         </table>
       </section>
@@ -376,6 +382,84 @@ trainer.train()</code></pre>
           </div>
         </div>
 
+        <!-- Qwen3-ASR -->
+        <div class="api-entry" id="stt-qwen3asr">
+          <h3>Qwen3-ASR</h3>
+          <p>Alibaba's Qwen3-ASR is an audio-LLM that injects audio features into a Qwen3 language model. Supports 30+ languages. The audio encoder has 24 layers and the Qwen3 decoder has 28 layers. LoRA targets both encoder and decoder.</p>
+          <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">from mlx_tune import FastSTTModel, STTSFTTrainer, STTSFTConfig, STTDataCollator
+
+model, processor = FastSTTModel.from_pretrained(
+    "mlx-community/Qwen3-ASR-1.7B-8bit",
+)
+model = FastSTTModel.get_peft_model(
+    model, r=16, lora_alpha=16,
+    target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
+    finetune_encoder=True, finetune_decoder=True,
+)
+
+collator = STTDataCollator(model, processor, language="en", task="transcribe")
+trainer = STTSFTTrainer(
+    model=model, processor=processor,
+    data_collator=collator, train_dataset=dataset,
+    args=STTSFTConfig(output_dir="./qwen3_asr_output", max_steps=100),
+)
+trainer.train()</code></pre>
+          </div>
+        </div>
+
+        <!-- Canary -->
+        <div class="api-entry" id="stt-canary">
+          <h3>NVIDIA Canary</h3>
+          <p>NVIDIA's Canary model uses a FastConformer encoder and Transformer decoder with cross-attention. Supports 25+ languages and speech translation. Encoder uses <code>linear_q/k/v/linear_out</code> (not q_proj), decoder uses <code>q_proj/k_proj/v_proj/out_proj</code>.</p>
+          <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">from mlx_tune import FastSTTModel, STTSFTTrainer, STTSFTConfig, STTDataCollator
+
+model, processor = FastSTTModel.from_pretrained(
+    "eelcor/canary-1b-v2-mlx",
+)
+model = FastSTTModel.get_peft_model(
+    model, r=16, lora_alpha=16,
+    target_modules=["q_proj", "k_proj", "v_proj", "out_proj"],
+    finetune_encoder=True, finetune_decoder=True,
+)
+
+collator = STTDataCollator(model, processor, language="en", task="transcribe")
+trainer = STTSFTTrainer(
+    model=model, processor=processor,
+    data_collator=collator, train_dataset=dataset,
+    args=STTSFTConfig(output_dir="./canary_output", max_steps=100),
+)
+trainer.train()</code></pre>
+          </div>
+        </div>
+
+        <!-- Voxtral -->
+        <div class="api-entry" id="stt-voxtral">
+          <h3>Voxtral</h3>
+          <p>Mistral's Voxtral combines an audio encoder (32 layers) with a Llama language model decoder (30 layers). It processes mel spectrograms and merges audio embeddings into the LLM's token sequence. LoRA targets: encoder <code>q_proj/k_proj/v_proj/out_proj</code>, decoder <code>q_proj/k_proj/v_proj/o_proj</code>.</p>
+          <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">from mlx_tune import FastSTTModel, STTSFTTrainer, STTSFTConfig, STTDataCollator
+
+model, processor = FastSTTModel.from_pretrained(
+    "mlx-community/Voxtral-Mini-3B-2507-bf16",
+)
+model = FastSTTModel.get_peft_model(
+    model, r=16, lora_alpha=16,
+    target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
+    finetune_encoder=True, finetune_decoder=True,
+)
+
+collator = STTDataCollator(model, processor, language="en", task="transcribe")
+trainer = STTSFTTrainer(
+    model=model, processor=processor,
+    data_collator=collator, train_dataset=dataset,
+    args=STTSFTConfig(output_dir="./voxtral_output", max_steps=100),
+)
+trainer.train()</code></pre>
+          </div>
+        </div>
+
         <!-- FastSTTModel -->
         <div class="api-entry" id="FastSTTModel">
           <h3>FastSTTModel API</h3>
@@ -389,7 +473,7 @@ trainer.train()</code></pre>
           <table class="api-params">
             <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
             <tbody>
-              <tr><td><code>model_name</code></td><td>str</td><td>HuggingFace model ID or local path. Supported: Whisper, Distil-Whisper, Moonshine</td></tr>
+              <tr><td><code>model_name</code></td><td>str</td><td>HuggingFace model ID or local path. Supported: Whisper, Distil-Whisper, Moonshine, Qwen3-ASR, Canary, Voxtral</td></tr>
               <tr><td><code>max_seq_length</code></td><td>int</td><td>Maximum decoder sequence length</td></tr>
             </tbody>
           </table>
@@ -556,6 +640,27 @@ FastTTSModel.convert(
             <div class="example-tags"><span class="example-tag">STT</span><span class="example-tag">Moonshine</span><span class="example-tag">Conv Frontend</span></div>
             <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/16_moonshine_stt_finetuning.py" target="_blank">View on GitHub &rarr;</a></p>
           </div>
+
+          <div class="example-card">
+            <h4>17 &mdash; Qwen3-ASR Fine-Tuning</h4>
+            <p>Fine-tune Alibaba's Qwen3-ASR (audio-LLM). Audio features injected into Qwen3 LLM for multilingual ASR.</p>
+            <div class="example-tags"><span class="example-tag">STT</span><span class="example-tag">Qwen3-ASR</span><span class="example-tag">Audio-LLM</span></div>
+            <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/17_qwen3_asr_finetuning.py" target="_blank">View on GitHub &rarr;</a></p>
+          </div>
+
+          <div class="example-card">
+            <h4>18 &mdash; Canary STT Fine-Tuning</h4>
+            <p>Fine-tune NVIDIA Canary (FastConformer + Transformer decoder). Multilingual ASR with 25+ languages.</p>
+            <div class="example-tags"><span class="example-tag">STT</span><span class="example-tag">Canary</span><span class="example-tag">NVIDIA</span></div>
+            <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/18_canary_stt_finetuning.py" target="_blank">View on GitHub &rarr;</a></p>
+          </div>
+
+          <div class="example-card">
+            <h4>19 &mdash; Voxtral STT Fine-Tuning</h4>
+            <p>Fine-tune Mistral's Voxtral (audio encoder + Llama decoder). 3B audio-LLM for speech recognition.</p>
+            <div class="example-tags"><span class="example-tag">STT</span><span class="example-tag">Voxtral</span><span class="example-tag">Audio-LLM</span></div>
+            <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/19_voxtral_stt_finetuning.py" target="_blank">View on GitHub &rarr;</a></p>
+          </div>
         </div>
       </section>
 
@@ -579,7 +684,7 @@ FastTTSModel.convert(
           <p>Different models use different sample rates. Always cast your dataset audio column to match:</p>
           <ul style="margin: 8px 0 0 16px;">
             <li><strong>24 kHz</strong>: Orpheus, OuteTTS, Sesame/CSM</li>
-            <li><strong>16 kHz</strong>: Spark-TTS, Whisper, Distil-Whisper, Moonshine</li>
+            <li><strong>16 kHz</strong>: Spark-TTS, Whisper, Distil-Whisper, Moonshine, Qwen3-ASR, Canary, Voxtral</li>
           </ul>
           <p style="margin-top:8px;"><code>dataset.cast_column("audio", Audio(sampling_rate=24000))</code></p>
         </div>
@@ -594,6 +699,9 @@ FastTTSModel.convert(
             <li>Whisper: <code>mlx-community/whisper-*-asr-fp16</code></li>
             <li>Distil-Whisper: <code>mlx-community/distil-whisper-large-v3</code></li>
             <li>Moonshine: <code>UsefulSensors/moonshine-tiny</code></li>
+            <li>Qwen3-ASR: <code>mlx-community/Qwen3-ASR-1.7B-8bit</code></li>
+            <li>Canary: <code>eelcor/canary-1b-v2-mlx</code></li>
+            <li>Voxtral: <code>mlx-community/Voxtral-Mini-3B-2507-bf16</code></li>
           </ul>
         </div>
 
@@ -606,6 +714,9 @@ FastTTSModel.convert(
             <li>Whisper-tiny / Moonshine-tiny: ~2 GB</li>
             <li>Orpheus-3B (4-bit): ~8 GB</li>
             <li>Distil-Whisper-large-v3: ~6 GB</li>
+            <li>Qwen3-ASR (1.7B, 8-bit): ~4 GB</li>
+            <li>Canary (1B): ~4 GB</li>
+            <li>Voxtral (3B, bf16): ~12 GB</li>
           </ul>
         </div>
 

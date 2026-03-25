@@ -78,7 +78,7 @@ Local Mac (MLX-Tune)       →     Cloud GPU (Unsloth)
 
 ## Project Status
 
-> 🚀 **v0.4.8** - Multi-model audio (4 TTS + 3 STT), post-training workflow, track-based docs
+> 🚀 **v0.4.9** - Qwen3-ASR, NVIDIA Canary, Voxtral STT fine-tuning; 5 STT + 4 TTS models supported
 
 | Feature | Status | Notes |
 |---------|--------|-------|

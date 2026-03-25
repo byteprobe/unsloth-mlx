@@ -2,8 +2,11 @@
 Speech-to-Text (STT) Fine-Tuning Support for MLX-Tune
 
 Provides Unsloth-compatible API for STT models on Apple Silicon using mlx-audio:
-- Whisper (OpenAI) - Encoder-decoder model for speech recognition
-- And other encoder-decoder STT models
+- Whisper / Distil-Whisper (OpenAI) - Encoder-decoder speech recognition
+- Moonshine (Useful Sensors) - Lightweight STT with conv frontend
+- Qwen3-ASR (Alibaba) - Audio-LLM for multilingual ASR
+- Canary (NVIDIA) - Conformer encoder-decoder with multilingual support
+- Voxtral (Mistral) - Audio encoder + Llama LM for speech recognition
 
 Usage (matches Unsloth patterns):
     from mlx_tune import FastSTTModel, STTSFTTrainer, STTSFTConfig, STTDataCollator
@@ -151,7 +154,7 @@ class FastSTTModel:
 
         if load_in_4bit or load_in_8bit:
             warnings.warn(
-                "Quantization is not currently supported for Whisper encoder-decoder models. "
+                "Quantization is not currently supported for STT encoder-decoder models. "
                 "Loading in default precision.",
                 UserWarning,
             )
@@ -163,34 +166,137 @@ class FastSTTModel:
             elif dtype == "bfloat16" or dtype == mx.bfloat16:
                 model_dtype = mx.bfloat16
 
-        print(f"Loading STT model: {model_name}")
-        model = _stt_load(model_name)
-
-        # mlx_audio.stt.load() attaches a WhisperProcessor via post_load_hook
-        hf_processor = getattr(model, "_processor", None)
-
-        # If processor not found in model repo, try loading from openai/whisper-*
-        if hf_processor is None:
-            hf_processor = _try_load_whisper_processor(model_name)
-            if hf_processor is not None:
-                model._processor = hf_processor
-
-        if hf_processor is None:
-            raise ValueError(
-                f"Could not load WhisperProcessor for '{model_name}'. "
-                "The model repo must include processor files (preprocessor_config.json, tokenizer.json). "
-                "Try a model like 'mlx-community/whisper-tiny-asr-fp16' or "
-                "'mlx-community/whisper-large-v3-turbo' instead."
-            )
-
-        # Build our processor wrapper
-        tokenizer = hf_processor.tokenizer
-
-        processor = STTProcessor(tokenizer=tokenizer, model=model, hf_processor=hf_processor)
-
         # Auto-detect model profile
         profile_key = detect_stt_model_type(model_name, {})
         profile = STT_PROFILES.get(profile_key) if profile_key else None
+
+        print(f"Loading STT model: {model_name}")
+
+        # Canary workaround: mlx-audio's canary sanitize() always transposes
+        # 4D conv weights (NeMo→MLX), but MLX-converted repos already have
+        # correct layout. Patch sanitize to skip the conv transpose.
+        _canary_sanitize_patched = False
+        if profile and profile.name == "canary":
+            try:
+                from mlx_audio.stt.models.canary.canary import Model as _CanaryModel
+                _original_sanitize = _CanaryModel.sanitize
+
+                def _safe_canary_sanitize(self_model, weights):
+                    sanitized = {}
+                    for key, value in weights.items():
+                        new_key = key
+                        # Apply the same key remapping as the original
+                        if key.startswith("encoder.") and not key.startswith("encoder_decoder"):
+                            new_key = "encoder.conformer." + key[len("encoder."):]
+                        # (skip other remappings — they only apply to NeMo keys)
+                        # Do NOT transpose conv weights (they're already in MLX format)
+                        if "attn_dropout" in key or "layer_dropout" in key:
+                            continue
+                        if key == "log_softmax.mlp.log_softmax":
+                            continue
+                        if "num_batches_tracked" in key:
+                            continue
+                        sanitized[new_key] = value
+                    return sanitized
+
+                _CanaryModel.sanitize = _safe_canary_sanitize
+                _canary_sanitize_patched = True
+            except ImportError:
+                pass
+
+        # Voxtral workaround: AutoProcessor.from_pretrained crashes in
+        # transformers 5.x because deepcopy of Mistral's tekken tokenizer
+        # fails during logger.info(f"Processor {processor}") __repr__.
+        # Patch post_load_hook to load tokenizer + feature_extractor separately.
+        _voxtral_hook_patched = False
+        if profile and profile.name == "voxtral":
+            try:
+                from mlx_audio.stt.models.voxtral.voxtral import Model as _VoxtralModel
+                _original_hook = _VoxtralModel.post_load_hook
+
+                @classmethod
+                def _safe_voxtral_hook(cls, model_obj, model_path):
+                    from transformers import AutoTokenizer, AutoFeatureExtractor
+                    tokenizer = AutoTokenizer.from_pretrained(str(model_path))
+                    feature_extractor = AutoFeatureExtractor.from_pretrained(str(model_path))
+
+                    class _Proc:
+                        pass
+                    proc = _Proc()
+                    proc.tokenizer = tokenizer
+                    proc.feature_extractor = feature_extractor
+                    proc.tokenizer.eos_token_ids = getattr(
+                        tokenizer, "eos_token_ids", [2, 4, 32000]
+                    )
+                    model_obj._processor = proc
+                    if not hasattr(model_obj.config, "model_repo") or model_obj.config.model_repo is None:
+                        try:
+                            index = model_path.parts.index("hub")
+                            model_obj.config.model_repo = (
+                                model_path.parts[index + 1]
+                                .replace("models--", "")
+                                .replace("--", "/")
+                            )
+                        except (ValueError, IndexError):
+                            model_obj.config.model_repo = str(model_path)
+                    return model_obj
+
+                _VoxtralModel.post_load_hook = _safe_voxtral_hook
+                _voxtral_hook_patched = True
+            except ImportError:
+                pass
+
+        model = _stt_load(model_name)
+
+        # Restore patched methods
+        if _canary_sanitize_patched:
+            _CanaryModel.sanitize = _original_sanitize
+        if _voxtral_hook_patched:
+            _VoxtralModel.post_load_hook = _original_hook
+
+        # Build processor based on model type
+        hf_processor = None
+        tokenizer = None
+
+        if profile and profile.architecture == "audio_llm":
+            # Audio-LLM models (Qwen3-ASR, Voxtral) use their own tokenizers
+            _inner = getattr(model, "_model", model)
+            # Try various tokenizer attribute names
+            tokenizer = getattr(_inner, "tokenizer", None)
+            if tokenizer is None:
+                tokenizer = getattr(_inner, "_tokenizer", None)
+            if tokenizer is None:
+                tokenizer = getattr(model, "tokenizer", None)
+            if tokenizer is None:
+                tokenizer = getattr(model, "_tokenizer", None)
+            hf_processor = getattr(model, "_processor", None)
+        else:
+            # Encoder-decoder models (Whisper, Canary) — try WhisperProcessor
+            hf_processor = getattr(model, "_processor", None)
+            if hf_processor is None:
+                hf_processor = _try_load_whisper_processor(model_name)
+                if hf_processor is not None:
+                    model._processor = hf_processor
+
+            # Canary has its own tokenizer (stored as _tokenizer)
+            if hf_processor is None and profile and profile.name == "canary":
+                tokenizer = getattr(model, "_tokenizer", None)
+                if tokenizer is None:
+                    tokenizer = getattr(model, "tokenizer", None)
+            elif hf_processor is None:
+                raise ValueError(
+                    f"Could not load processor for '{model_name}'. "
+                    "Try a model like 'mlx-community/whisper-tiny-asr-fp16'."
+                )
+
+        # Extract tokenizer from processor if available
+        if tokenizer is None and hf_processor is not None:
+            tokenizer = getattr(hf_processor, "tokenizer", hf_processor)
+
+        processor = STTProcessor(
+            tokenizer=tokenizer, model=model, hf_processor=hf_processor,
+            profile=profile,
+        )
 
         wrapper = STTModelWrapper(
             model=model,
@@ -200,10 +306,10 @@ class FastSTTModel:
             profile=profile,
         )
 
-        n_enc = model.dims.n_audio_layer if hasattr(model, "dims") else "?"
-        n_dec = model.dims.n_text_layer if hasattr(model, "dims") else "?"
         print(f"STT model loaded: {model_name}")
-        print(f"  Encoder layers: {n_enc}, Decoder layers: {n_dec}")
+        arch = profile.architecture if profile else "encoder_decoder"
+        print(f"  Architecture: {arch}, Profile: {profile.name if profile else 'whisper'}")
+        print(f"  Encoder layers: {wrapper.n_audio_layer}, Decoder layers: {wrapper.n_text_layer}")
         print(f"  Sample rate: {wrapper.profile.sample_rate}Hz, Max decode length: {max_seq_length}")
 
         return wrapper, processor
@@ -252,9 +358,12 @@ class FastSTTModel:
         if not finetune_encoder and not finetune_decoder:
             raise ValueError("At least one of finetune_encoder or finetune_decoder must be True")
 
-        # Default target modules for Whisper attention layers
+        # Default target modules from profile
         if target_modules is None:
-            target_modules = ["query", "key", "value", "out"]
+            if hasattr(model, 'profile') and model.profile:
+                target_modules = list(model.profile.lora_target_modules)
+            else:
+                target_modules = ["query", "key", "value", "out"]
 
         model.configure_lora(
             r=r,
@@ -337,14 +446,17 @@ class STTProcessor:
     """
 
     def __init__(self, tokenizer: Any = None, model: Any = None, hf_processor: Any = None,
-                 max_audio_samples: int = WHISPER_N_SAMPLES):
-        self._raw_tokenizer = tokenizer  # HF WhisperTokenizer
+                 max_audio_samples: int = WHISPER_N_SAMPLES,
+                 profile: Optional["STTModelProfile"] = None):
+        self._raw_tokenizer = tokenizer
         self._model = model
-        self._hf_processor = hf_processor  # transformers.WhisperProcessor
-        self._whisper_tokenizer = None  # HFTokenizerWrapper from model.get_tokenizer()
+        self._hf_processor = hf_processor
+        self._whisper_tokenizer = None
         self._max_audio_samples = max_audio_samples
+        self._profile = profile
 
         # Try to get the Whisper tokenizer wrapper (has sot_sequence, eot, etc.)
+        # Only for Whisper-family models
         if model is not None and hf_processor is not None:
             try:
                 self._whisper_tokenizer = model.get_tokenizer(language="en", task="transcribe")
@@ -471,17 +583,44 @@ class STTModelWrapper:
         # Mode
         self.inference_mode = False
 
-        # Model dimensions (from Whisper)
+        # Model dimensions — extract from various model structures
         if hasattr(model, "dims"):
+            # Whisper-style dims dataclass
             self.n_audio_layer = model.dims.n_audio_layer
             self.n_text_layer = model.dims.n_text_layer
             self.n_mels = model.dims.n_mels
             self.n_vocab = model.dims.n_vocab
         else:
-            self.n_audio_layer = 0
-            self.n_text_layer = 0
+            # Count layers by traversing block paths
             self.n_mels = self.profile.n_mels
-            self.n_vocab = 51865
+            self.n_vocab = 51865  # default, overridden below if possible
+            self.n_audio_layer = self._count_blocks(self.profile.encoder_block_path)
+            self.n_text_layer = self._count_blocks(self.profile.decoder_block_path)
+
+            # Try to get vocab size from config
+            _inner = getattr(model, "_model", model)
+            _cfg = getattr(_inner, "config", getattr(model, "config", None))
+            if _cfg is not None:
+                # Various config attribute names for vocab size
+                for attr in ("vocab_size", "n_vocab"):
+                    v = getattr(_cfg, attr, None)
+                    if v is None and hasattr(_cfg, "text_config"):
+                        v = getattr(_cfg.text_config, attr, None)
+                    if v is not None:
+                        self.n_vocab = v
+                        break
+
+    def _count_blocks(self, block_path: str) -> int:
+        """Count the number of blocks at the given path."""
+        obj = self.model
+        for part in block_path.split("."):
+            obj = getattr(obj, part, None)
+            if obj is None:
+                return 0
+        try:
+            return len(obj)
+        except TypeError:
+            return 0
 
     def configure_lora(
         self,
@@ -559,6 +698,12 @@ class STTModelWrapper:
         enc_parts = self.profile.encoder_block_path.split(".")  # e.g. ["encoder", "blocks"]
         dec_parts = self.profile.decoder_block_path.split(".")  # e.g. ["decoder", "blocks"]
 
+        # Determine encoder-specific targets (may differ from decoder)
+        enc_targets = list(self.profile.encoder_lora_targets) if self.profile.encoder_lora_targets else target_modules
+
+        # For audio-LLM models, decoder has no cross-attention
+        has_decoder_cross_attn = self.profile.architecture == "encoder_decoder"
+
         # Apply LoRA to encoder blocks
         if finetune_encoder:
             enc_obj = self.model
@@ -569,7 +714,7 @@ class STTModelWrapper:
             if enc_obj is not None:
                 for block in enc_obj:
                     total_replaced += self._apply_lora_to_block(
-                        block, target_modules, r, scale, dropout,
+                        block, enc_targets, r, scale, dropout,
                         has_cross_attn=False,
                     )
             print(f"  Encoder: LoRA applied to {self.n_audio_layer} blocks")
@@ -585,7 +730,7 @@ class STTModelWrapper:
                 for block in dec_obj:
                     total_replaced += self._apply_lora_to_block(
                         block, target_modules, r, scale, dropout,
-                        has_cross_attn=True,
+                        has_cross_attn=has_decoder_cross_attn,
                     )
             print(f"  Decoder: LoRA applied to {self.n_text_layer} blocks")
 
@@ -1017,11 +1162,21 @@ class STTDataCollator:
             samples: List of dicts with audio and text columns
 
         Returns:
-            Dict with 'input_features', 'labels', 'decoder_input_ids' as mx.arrays
+            Dict with model-appropriate keys as mx.arrays
         """
         if isinstance(samples, dict):
             samples = [samples]
 
+        profile = self.model.profile if self.model else None
+        is_audio_llm = profile and profile.architecture == "audio_llm"
+
+        if is_audio_llm:
+            return self._collate_audio_llm(samples)
+        else:
+            return self._collate_encoder_decoder(samples)
+
+    def _collate_encoder_decoder(self, samples: List[Dict]) -> Dict:
+        """Collate for encoder-decoder models (Whisper, Canary, Moonshine)."""
         all_mels = []
         all_labels = []
         all_decoder_inputs = []
@@ -1034,7 +1189,13 @@ class STTDataCollator:
 
         # Pad decoder sequences to same length
         max_dec_len = max(len(ids) for ids in all_decoder_inputs)
-        eot = self.processor.tokenizer.eot if hasattr(self.processor.tokenizer, "eot") else 50257
+        tok = self.processor.tokenizer
+        if hasattr(tok, "eot"):
+            eot = tok.eot
+        elif hasattr(tok, "eos_id"):
+            eot = tok.eos_id
+        else:
+            eot = 50257
 
         padded_decoder_inputs = []
         padded_labels = []
@@ -1044,6 +1205,9 @@ class STTDataCollator:
             padded_labels.append(labs + [-100] * pad_len)
 
         # Stack mel spectrograms (all are same size after pad_or_trim)
+        # Canary mel is already batched (1, T, features) — squeeze batch dim before stacking
+        if all_mels and all_mels[0].ndim == 3 and all_mels[0].shape[0] == 1:
+            all_mels = [m.squeeze(0) for m in all_mels]
         mel_batch = mx.stack(all_mels)
 
         return {
@@ -1051,6 +1215,36 @@ class STTDataCollator:
             "decoder_input_ids": mx.array(padded_decoder_inputs),
             "labels": mx.array(padded_labels),
         }
+
+    def _collate_audio_llm(self, samples: List[Dict]) -> Dict:
+        """Collate for audio-LLM models (Qwen3-ASR, Voxtral)."""
+        processed = [self._process_audio_llm_sample(s) for s in samples]
+
+        all_input_ids = [p["input_ids"] for p in processed]
+        all_labels = [p["labels"] for p in processed]
+
+        # Pad sequences
+        max_len = max(len(ids) for ids in all_input_ids)
+        pad_id = 0
+
+        padded_ids = []
+        padded_labels = []
+        for ids, labs in zip(all_input_ids, all_labels):
+            pad_len = max_len - len(ids)
+            padded_ids.append(ids + [pad_id] * pad_len)
+            padded_labels.append(labs + [-100] * pad_len)
+
+        result = {
+            "input_ids": mx.array(padded_ids),
+            "labels": mx.array(padded_labels),
+        }
+
+        # Pass through audio feature keys (batch_size=1, use first sample's features)
+        for key in ("input_features", "feature_attention_mask"):
+            if key in processed[0]:
+                result[key] = processed[0][key]
+
+        return result
 
     def _process_sample(self, sample: Dict) -> Tuple[mx.array, List[int], List[int]]:
         """Process a single sample into audio features, decoder_input_ids, and labels."""
@@ -1087,6 +1281,12 @@ class STTDataCollator:
         if preprocessor == "raw_conv":
             # Raw waveform for conv-frontend models (Moonshine)
             features = self.processor.preprocess_raw_audio(audio_array)
+        elif preprocessor == "canary_mel":
+            # Canary: use model's own _preprocess_audio (parakeet mel spectrogram)
+            actual_model = self.model.model if hasattr(self.model, "model") else self.model
+            features = actual_model._preprocess_audio(audio_array)
+            # Returns (1, T, 128) — already batched, squeeze for consistency
+            # We'll re-stack later in _collate_encoder_decoder
         else:
             # Default: log-mel spectrogram (Whisper)
             features = self.processor.compute_mel(audio_array, n_mels=self.model.n_mels)
@@ -1097,6 +1297,24 @@ class STTDataCollator:
 
         # Use language-specific tokenizer if available, otherwise default
         tokenizer = self._lang_tokenizer or self.processor.tokenizer
+
+        # Canary-specific tokenization
+        _profile_name = self.model.profile.name if self.model.profile else ""
+        if _profile_name == "canary":
+            # Canary uses build_prompt_tokens for SOT, encode for text
+            transcript_tokens = tokenizer.encode(text)
+            sot_seq = tokenizer.build_prompt_tokens(
+                source_lang=self.language,
+                target_lang=self.language,
+                use_pnc=True,
+            )
+            decoder_input_ids = sot_seq + transcript_tokens
+            eot = tokenizer.eos_id
+            labels = transcript_tokens + [eot]
+            while len(labels) < len(decoder_input_ids):
+                labels = [-100] + labels
+            return features, decoder_input_ids, labels
+
         if tokenizer is not None:
             transcript_tokens = tokenizer.encode(text)
         else:
@@ -1122,6 +1340,114 @@ class STTDataCollator:
             labels = [-100] + labels  # Pad front with ignore
 
         return features, decoder_input_ids, labels
+
+    def _process_audio_llm_sample(self, sample: Dict) -> Dict:
+        """Process a sample for audio-LLM models (Qwen3-ASR, Voxtral).
+
+        Returns a dict with 'input_ids', 'labels', and model-specific audio keys.
+        """
+        profile = self.model.profile
+        audio_token_id = profile.audio_token_id
+
+        # Get audio
+        audio_data = sample.get(self.audio_column)
+        if audio_data is None:
+            raise ValueError(f"Sample missing '{self.audio_column}' column")
+
+        target_sr = profile.sample_rate
+
+        if isinstance(audio_data, dict):
+            audio_array = np.array(audio_data.get("array", audio_data.get("data")), dtype=np.float32)
+            sr = audio_data.get("sampling_rate", target_sr)
+        elif isinstance(audio_data, np.ndarray):
+            audio_array = audio_data.astype(np.float32)
+            sr = target_sr
+        else:
+            audio_array = np.array(audio_data, dtype=np.float32)
+            sr = target_sr
+
+        if sr != target_sr:
+            try:
+                from mlx_audio.stt.utils import resample_audio
+                audio_array = resample_audio(audio_array, sr, target_sr)
+            except ImportError:
+                import librosa
+                audio_array = librosa.resample(audio_array, orig_sr=sr, target_sr=target_sr)
+
+        # Preprocess audio using model's own method
+        _inner = getattr(self.model.model, "_model", self.model.model)
+        extra_keys = {}
+        n_audio_tokens = 10  # fallback
+
+        if profile.name == "voxtral":
+            # Voxtral: use feature_extractor → transpose → get_audio_embeds to count tokens
+            feat_ext = getattr(self.model.model._processor, "feature_extractor", None)
+            if feat_ext is not None:
+                features = feat_ext(audio_array, sampling_rate=target_sr, return_tensors="np")
+                input_feats = mx.array(features["input_features"])  # (1, 128, T)
+                input_feats = input_feats.transpose(0, 2, 1)  # (1, T, 128)
+                extra_keys["input_features"] = input_feats
+                # Compute exact audio token count via audio tower
+                audio_embeds = self.model.model.get_audio_embeds(input_feats)
+                mx.eval(audio_embeds)
+                n_audio_tokens = audio_embeds.shape[0]
+            else:
+                raise ValueError("Voxtral model missing feature_extractor in processor")
+        elif hasattr(_inner, "_preprocess_audio"):
+            # Qwen3-ASR: model has _preprocess_audio
+            result = _inner._preprocess_audio(audio_array)
+            if isinstance(result, tuple) and len(result) == 3:
+                # Qwen3-ASR: (input_features, attention_mask, num_audio_tokens)
+                extra_keys["input_features"] = result[0]
+                extra_keys["feature_attention_mask"] = result[1]
+                n_audio_tokens = int(result[2])
+            elif isinstance(result, tuple) and len(result) == 2:
+                extra_keys["input_features"] = result[0]
+                n_audio_tokens = result[0].shape[1] if result[0].ndim >= 2 else 10
+            else:
+                extra_keys["input_features"] = result
+                n_audio_tokens = result.shape[1] if hasattr(result, "shape") and result.ndim >= 2 else 10
+        else:
+            # Fallback: compute mel spectrogram
+            audio_mx = mx.array(audio_array, dtype=mx.float32)
+            try:
+                from mlx_audio.stt.models.whisper.audio import log_mel_spectrogram, pad_or_trim
+                audio_mx = pad_or_trim(audio_mx)
+                features = log_mel_spectrogram(audio_mx, n_mels=profile.n_mels)
+                extra_keys["input_features"] = features[None]  # add batch dim
+                n_audio_tokens = features.shape[0] // 2  # rough estimate
+            except ImportError:
+                extra_keys["input_features"] = audio_mx.reshape(1, 1, -1)
+
+        # Get text
+        text_col = self._find_text_column(sample)
+        text = sample[text_col]
+
+        # Tokenize transcription
+        tokenizer = self.processor.tokenizer
+        if hasattr(tokenizer, "encode"):
+            transcript_tokens = tokenizer.encode(text)
+        elif callable(tokenizer):
+            transcript_tokens = list(tokenizer(text)["input_ids"])
+        else:
+            transcript_tokens = []
+
+        # Build input sequence: [audio_placeholder × N, transcription_tokens]
+        audio_placeholder = [audio_token_id] * n_audio_tokens
+        input_ids = audio_placeholder + transcript_tokens
+
+        # Labels: -100 for audio positions, transcript tokens (shifted by 1)
+        eos_id = getattr(tokenizer, "eos_token_id", 0)
+        if eos_id is None:
+            eos_id = 0
+        labels = [-100] * len(audio_placeholder) + transcript_tokens[1:] + [eos_id]
+
+        # Ensure same length
+        while len(labels) < len(input_ids):
+            labels.append(-100)
+        labels = labels[:len(input_ids)]
+
+        return {"input_ids": input_ids, "labels": labels, **extra_keys}
 
 
 class STTSFTTrainer:
@@ -1199,8 +1525,18 @@ class STTSFTTrainer:
         if self.wrapper and self.wrapper.lora_enabled and not self.wrapper._lora_applied:
             self.wrapper._apply_lora()
 
+        # For audio-LLM wrapper models (Qwen3-ASR, Voxtral), use inner model
+        # directly so MLX's tree_map works correctly with optimizer
+        _profile = self.wrapper.profile if self.wrapper else None
+        _arch = _profile.architecture if _profile else "encoder_decoder"
+        train_model = self.actual_model
+        if _arch == "audio_llm":
+            _inner = getattr(self.actual_model, "_model", None)
+            if _inner is not None:
+                train_model = _inner
+
         # Set training mode
-        self.actual_model.train()
+        train_model.train()
 
         # Optimizer
         optimizer = optim.Adam(learning_rate=self.learning_rate)
@@ -1222,34 +1558,49 @@ class STTSFTTrainer:
         print(f"  Learning rate: {self.learning_rate}")
 
         # Detect model architecture for forward pass dispatch
-        _is_moonshine = (self.wrapper and self.wrapper.profile
-                         and self.wrapper.profile.name == "moonshine")
+        _model_name = _profile.name if _profile else "whisper"
 
-        # Seq2seq loss function
+        # Seq2seq / audio-LLM loss function
         def loss_fn(model, batch):
-            mel = batch["input_features"]
-            decoder_input_ids = batch["decoder_input_ids"]
             labels = batch["labels"]
 
-            # Forward pass: dispatch based on model architecture
-            if _is_moonshine:
+            if _arch == "audio_llm":
+                # Audio-LLM models (Qwen3-ASR, Voxtral): model(input_ids, input_features=audio)
+                input_ids = batch["input_ids"]
+                input_features = batch.get("input_features")
+                fwd_kwargs = {}
+                if "feature_attention_mask" in batch:
+                    fwd_kwargs["feature_attention_mask"] = batch["feature_attention_mask"]
+                logits = model(input_ids, input_features=input_features, **fwd_kwargs)
+            elif _model_name == "moonshine":
                 # Moonshine: encoder(audio) -> decoder(tokens, encoder_out)
+                mel = batch["input_features"]
+                decoder_input_ids = batch["decoder_input_ids"]
                 encoder_out = model.encoder(mel)
                 decoder_out, _ = model.decoder(decoder_input_ids, encoder_out)
-                # Project to vocab
                 if hasattr(model, "proj_out"):
                     logits = model.proj_out(decoder_out)
                 else:
                     logits = model.decoder.embed_tokens.as_linear(decoder_out)
+            elif _model_name == "canary":
+                # Canary: encoder(mel, lengths) -> decoder(tokens, enc_out)
+                mel = batch["input_features"]
+                decoder_input_ids = batch["decoder_input_ids"]
+                enc_lengths = mx.array([mel.shape[1]])
+                enc_out, enc_lengths_out = model.encoder(mel, enc_lengths)
+                enc_mask = mx.ones((1, enc_out.shape[1]), dtype=mx.bool_)
+                logits, _ = model.decoder(decoder_input_ids, enc_out, encoder_mask=enc_mask)
             else:
                 # Whisper: model(mel, decoder_input_ids) -> logits
+                mel = batch["input_features"]
+                decoder_input_ids = batch["decoder_input_ids"]
                 logits = model(mel, decoder_input_ids)
 
             # Handle models that return objects
             if hasattr(logits, "logits"):
                 logits = logits.logits
 
-            # Cross-entropy loss (no shift needed - decoder already shifted)
+            # Cross-entropy loss
             vocab_size = logits.shape[-1]
             loss = nn.losses.cross_entropy(
                 logits.reshape(-1, vocab_size),
@@ -1262,7 +1613,7 @@ class STTSFTTrainer:
             loss = (loss * mask).sum() / mx.maximum(mask.sum(), 1)
             return loss
 
-        loss_and_grad_fn = nn.value_and_grad(self.actual_model, loss_fn)
+        loss_and_grad_fn = nn.value_and_grad(train_model, loss_fn)
 
         grad_accum = self.gradient_accumulation_steps
         progress = tqdm(range(total_steps), desc="Training")
@@ -1294,7 +1645,7 @@ class STTSFTTrainer:
                 else:
                     batch = self.train_dataset[i]
 
-                loss, grads = loss_and_grad_fn(self.actual_model, batch)
+                loss, grads = loss_and_grad_fn(train_model, batch)
                 mx.eval(loss)
 
                 # Accumulate gradients
@@ -1312,8 +1663,8 @@ class STTSFTTrainer:
                     averaged_grads = tree_map(
                         lambda g: g / grad_accum, accumulated_grads
                     )
-                    optimizer.update(self.actual_model, averaged_grads)
-                    mx.eval(self.actual_model, optimizer.state)
+                    optimizer.update(train_model, averaged_grads)
+                    mx.eval(train_model, optimizer.state)
 
                     loss_val = accum_loss / grad_accum
                     total_loss += loss_val

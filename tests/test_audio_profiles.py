@@ -502,6 +502,26 @@ class TestAutoDetection:
         from mlx_tune.audio_profiles import detect_stt_model_type
         assert detect_stt_model_type("moonshine-tiny", {}) == "moonshine"
 
+    def test_detect_qwen3_asr(self):
+        from mlx_tune.audio_profiles import detect_stt_model_type
+        assert detect_stt_model_type("mlx-community/Qwen3-ASR-1.7B-8bit", {}) == "qwen3_asr"
+
+    def test_detect_qwen3_asr_lowercase(self):
+        from mlx_tune.audio_profiles import detect_stt_model_type
+        assert detect_stt_model_type("qwen3-asr-0.6b", {}) == "qwen3_asr"
+
+    def test_detect_canary(self):
+        from mlx_tune.audio_profiles import detect_stt_model_type
+        assert detect_stt_model_type("nvidia/canary-1b-v2", {}) == "canary"
+
+    def test_detect_voxtral(self):
+        from mlx_tune.audio_profiles import detect_stt_model_type
+        assert detect_stt_model_type("mlx-community/Voxtral-Mini-3B-2507-bf16", {}) == "voxtral"
+
+    def test_detect_voxtral_lowercase(self):
+        from mlx_tune.audio_profiles import detect_stt_model_type
+        assert detect_stt_model_type("mistral/voxtral-realtime", {}) == "voxtral"
+
     def test_detect_stt_unknown(self):
         from mlx_tune.audio_profiles import detect_stt_model_type
         assert detect_stt_model_type("some-random-stt-model", {}) is None
@@ -525,7 +545,7 @@ class TestRegistries:
 
     def test_stt_registry_has_all_models(self):
         from mlx_tune.audio_profiles import STT_PROFILES
-        expected = {"whisper", "moonshine"}
+        expected = {"whisper", "moonshine", "qwen3_asr", "canary", "voxtral"}
         assert set(STT_PROFILES.keys()) == expected
 
     def test_tts_registry_values_are_profiles(self):
@@ -552,8 +572,41 @@ class TestRegistries:
         for name, profile in STT_PROFILES.items():
             assert profile.name == name
             assert profile.sample_rate > 0
-            assert profile.preprocessor in ("log_mel_spectrogram", "raw_conv")
+            assert profile.preprocessor in ("log_mel_spectrogram", "raw_conv", "canary_mel")
             assert len(profile.lora_target_modules) > 0
+            assert profile.architecture in ("encoder_decoder", "audio_llm")
+
+    def test_audio_llm_profiles_have_audio_token_id(self):
+        from mlx_tune.audio_profiles import STT_PROFILES
+        for name, profile in STT_PROFILES.items():
+            if profile.architecture == "audio_llm":
+                assert profile.audio_token_id is not None, f"{name} missing audio_token_id"
+
+    def test_qwen3_asr_profile(self):
+        from mlx_tune.audio_profiles import STT_PROFILES
+        p = STT_PROFILES["qwen3_asr"]
+        assert p.architecture == "audio_llm"
+        assert p.n_mels == 128
+        assert p.audio_token_id == 151676
+        assert "q_proj" in p.lora_target_modules
+        assert p.encoder_lora_targets is not None
+        assert "out_proj" in p.encoder_lora_targets
+
+    def test_canary_profile(self):
+        from mlx_tune.audio_profiles import STT_PROFILES
+        p = STT_PROFILES["canary"]
+        assert p.architecture == "encoder_decoder"
+        assert p.n_mels == 128
+        assert "conformer" in p.encoder_block_path
+        assert p.encoder_lora_targets is not None
+        assert "linear_q" in p.encoder_lora_targets
+
+    def test_voxtral_profile(self):
+        from mlx_tune.audio_profiles import STT_PROFILES
+        p = STT_PROFILES["voxtral"]
+        assert p.architecture == "audio_llm"
+        assert p.audio_token_id == 24
+        assert "language_model" in p.decoder_block_path
 
 
 # ---------------------------------------------------------------------------

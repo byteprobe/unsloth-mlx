@@ -87,9 +87,12 @@ class STTModelProfile:
     # Identity
     name: str
 
+    # Architecture type: "encoder_decoder" (Whisper, Canary) or "audio_llm" (Qwen3-ASR, Voxtral)
+    architecture: str = "encoder_decoder"
+
     # Audio preprocessing
-    sample_rate: int
-    preprocessor: str  # "log_mel_spectrogram" | "raw_conv"
+    sample_rate: int = 16000
+    preprocessor: str = "log_mel_spectrogram"  # "log_mel_spectrogram" | "raw_conv"
     n_mels: int = 80
     max_audio_samples: int = 480000  # e.g. 480000 for 30s at 16kHz
 
@@ -102,8 +105,17 @@ class STTModelProfile:
     # Tokenizer
     sot_token_id: int = 50258
 
-    # LoRA
+    # LoRA — target module names within attention blocks
     lora_target_modules: Tuple[str, ...] = ("query", "key", "value", "out")
+
+    # Separate encoder LoRA targets (if encoder uses different names than decoder)
+    encoder_lora_targets: Optional[Tuple[str, ...]] = None
+
+    # Audio-LLM specific
+    audio_token_id: Optional[int] = None  # Placeholder token replaced by audio features
+
+    # Inner model path for wrapper models (e.g., "_model" for Qwen3-ASR)
+    inner_model_attr: Optional[str] = None
 
     # Model loader
     loader: str = "mlx_audio_stt"
@@ -247,6 +259,60 @@ _MOONSHINE_PROFILE = STTModelProfile(
     loader="mlx_audio_stt",
 )
 
+_QWEN3_ASR_PROFILE = STTModelProfile(
+    name="qwen3_asr",
+    architecture="audio_llm",
+    sample_rate=16000,
+    preprocessor="log_mel_spectrogram",
+    n_mels=128,
+    max_audio_samples=0,  # Variable length
+    encoder_block_path="_model.audio_tower.layers",
+    decoder_block_path="_model.model.layers",
+    attn_names={"self_attn": "self_attn"},
+    cross_attn_attr="",  # No cross-attention in LLM decoder
+    sot_token_id=0,  # Not used for audio-LLM
+    lora_target_modules=("q_proj", "k_proj", "v_proj", "o_proj"),
+    encoder_lora_targets=("q_proj", "k_proj", "v_proj", "out_proj"),
+    audio_token_id=151676,
+    inner_model_attr=None,  # Model wrapper delegates via __call__
+    loader="mlx_audio_stt",
+)
+
+_CANARY_PROFILE = STTModelProfile(
+    name="canary",
+    architecture="encoder_decoder",
+    sample_rate=16000,
+    preprocessor="canary_mel",  # Uses parakeet's log_mel_spectrogram via model._preprocess_audio
+    n_mels=128,
+    max_audio_samples=0,  # Variable length
+    encoder_block_path="encoder.conformer.layers",
+    decoder_block_path="decoder.blocks",
+    attn_names={"self_attn": "self_attn", "cross_attn": "cross_attn"},
+    cross_attn_attr="cross_attn",
+    sot_token_id=0,
+    lora_target_modules=("q_proj", "k_proj", "v_proj", "out_proj"),
+    encoder_lora_targets=("linear_q", "linear_k", "linear_v", "linear_out"),
+    loader="mlx_audio_stt",
+)
+
+_VOXTRAL_PROFILE = STTModelProfile(
+    name="voxtral",
+    architecture="audio_llm",
+    sample_rate=16000,
+    preprocessor="log_mel_spectrogram",
+    n_mels=128,
+    max_audio_samples=0,  # Variable length
+    encoder_block_path="audio_tower.layers",
+    decoder_block_path="language_model.model.layers",
+    attn_names={"self_attn": "self_attn"},
+    cross_attn_attr="",  # No cross-attention in LLM decoder
+    sot_token_id=0,
+    lora_target_modules=("q_proj", "k_proj", "v_proj", "o_proj"),
+    encoder_lora_targets=("q_proj", "k_proj", "v_proj", "out_proj"),
+    audio_token_id=24,  # Voxtral audio placeholder token
+    loader="mlx_audio_stt",
+)
+
 
 # ---------------------------------------------------------------------------
 # Profile Registries
@@ -262,6 +328,9 @@ TTS_PROFILES: Dict[str, TTSModelProfile] = {
 STT_PROFILES: Dict[str, STTModelProfile] = {
     "whisper": _WHISPER_PROFILE,
     "moonshine": _MOONSHINE_PROFILE,
+    "qwen3_asr": _QWEN3_ASR_PROFILE,
+    "canary": _CANARY_PROFILE,
+    "voxtral": _VOXTRAL_PROFILE,
 }
 
 
@@ -284,6 +353,9 @@ _STT_PATTERNS: Dict[str, List[str]] = {
         r"whisper[-_](tiny|base|small|medium|large)",
     ],
     "moonshine": [r"moonshine", r"useful[-_]?sensors.*moonshine"],
+    "qwen3_asr": [r"qwen3[-_]?asr", r"Qwen3[-_]?ASR"],
+    "canary": [r"canary", r"nvidia.*canary"],
+    "voxtral": [r"voxtral", r"mistral.*voxtral", r"Voxtral"],
 }
 
 
