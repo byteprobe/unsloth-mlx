@@ -50,7 +50,7 @@ Bringing the [Unsloth](https://github.com/unslothai/unsloth) experience to Mac u
 - 💾 **Leverage unified memory** (up to 512GB on Mac Studio)
 - 🔄 **Unsloth-compatible API** - your existing training scripts just work!
 - 📦 **Export anywhere** - HuggingFace format, GGUF for Ollama/llama.cpp
-- 🎙️ **Audio fine-tuning** - 4 TTS models (Orpheus, OuteTTS, Spark, Sesame) + 3 STT models (Whisper, Distil-Whisper, Moonshine)
+- 🎙️ **Audio fine-tuning** - 4 TTS models (Orpheus, OuteTTS, Spark, Sesame) + 5 STT models (Whisper, Moonshine, Qwen3-ASR, NVIDIA Canary, Voxtral)
 
 ```python
 # Unsloth (CUDA)                        # MLX-Tune (Apple Silicon)
@@ -96,7 +96,7 @@ Local Mac (MLX-Tune)       →     Cloud GPU (Unsloth)
 | Dataset Config | ✅ Stable | `HFDatasetConfig` structured loading |
 | Vision Models | ✅ Stable | Full VLM fine-tuning via mlx-vlm |
 | **TTS Fine-Tuning** | ✅ Stable | **Orpheus, OuteTTS, Spark-TTS, Sesame/CSM** |
-| **STT Fine-Tuning** | ✅ Stable | **Whisper, Distil-Whisper, Moonshine** |
+| **STT Fine-Tuning** | ✅ Stable | **Whisper, Moonshine, Qwen3-ASR, Canary, Voxtral** |
 | **`convert()`** | ✅ Stable | **HF → MLX conversion (LLM, TTS, STT)** |
 | **`push_to_hub()`** | ✅ Stable | **Upload to HuggingFace Hub** |
 | PyPI Package | ✅ Available | `uv pip install mlx-tune` |
@@ -274,7 +274,7 @@ trainer = STTSFTTrainer(
 trainer.train()
 ```
 
-See examples: [Whisper](examples/13_whisper_stt_finetuning.py), [Moonshine](examples/16_moonshine_stt_finetuning.py).
+See examples: [Whisper](examples/13_whisper_stt_finetuning.py), [Moonshine](examples/16_moonshine_stt_finetuning.py), [Qwen3-ASR](examples/17_qwen3_asr_finetuning.py), [Canary](examples/18_canary_stt_finetuning.py), [Voxtral](examples/19_voxtral_stt_finetuning.py).
 
 ### Post-Training Workflow
 
@@ -306,7 +306,7 @@ model.push_to_hub("username/my-model")
 | **SimPO** | `SimPOTrainer` | ✅ Native MLX | Simple preference optimization |
 | **VLM SFT** | `VLMSFTTrainer` | ✅ Native MLX | Vision-Language model fine-tuning |
 | **TTS SFT** | `TTSSFTTrainer` | ✅ Native MLX | Orpheus, OuteTTS, Spark-TTS, Sesame/CSM |
-| **STT SFT** | `STTSFTTrainer` | ✅ Native MLX | Whisper, Distil-Whisper, Moonshine |
+| **STT SFT** | `STTSFTTrainer` | ✅ Native MLX | Whisper, Moonshine, Qwen3-ASR, Canary, Voxtral |
 
 ## Examples
 
@@ -316,7 +316,7 @@ Check [`examples/`](examples/) for working code:
 - RL training methods — DPO, GRPO, ORPO (09)
 - Vision model fine-tuning — Qwen3.5 (10–11)
 - TTS fine-tuning — Orpheus-3B (12), OuteTTS (14), Spark-TTS (15)
-- STT fine-tuning — Whisper (13), Moonshine (16)
+- STT fine-tuning — Whisper (13), Moonshine (16), Qwen3-ASR (17), Canary (18), Voxtral (19)
 
 ## Requirements
 

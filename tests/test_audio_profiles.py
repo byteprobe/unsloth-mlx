@@ -520,7 +520,9 @@ class TestAutoDetection:
 
     def test_detect_voxtral_lowercase(self):
         from mlx_tune.audio_profiles import detect_stt_model_type
-        assert detect_stt_model_type("mistral/voxtral-realtime", {}) == "voxtral"
+        # Regular Voxtral matches, Realtime does NOT (different streaming architecture)
+        assert detect_stt_model_type("mistral/voxtral-mini", {}) == "voxtral"
+        assert detect_stt_model_type("mistral/voxtral-realtime", {}) is None
 
     def test_detect_stt_unknown(self):
         from mlx_tune.audio_profiles import detect_stt_model_type

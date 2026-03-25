@@ -355,7 +355,8 @@ _STT_PATTERNS: Dict[str, List[str]] = {
     "moonshine": [r"moonshine", r"useful[-_]?sensors.*moonshine"],
     "qwen3_asr": [r"qwen3[-_]?asr", r"Qwen3[-_]?ASR"],
     "canary": [r"canary", r"nvidia.*canary"],
-    "voxtral": [r"voxtral", r"mistral.*voxtral", r"Voxtral"],
+    # Match regular Voxtral but NOT Voxtral Realtime (different streaming architecture)
+    "voxtral": [r"voxtral(?!.*realtime)", r"mistral.*voxtral(?!.*realtime)", r"Voxtral(?!.*Realtime)"],
 }
 
 

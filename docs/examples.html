@@ -514,6 +514,114 @@ trainer.train()</code></pre>
             <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/16_moonshine_stt_finetuning.py" target="_blank">Full source &rarr;</a></p>
           </div>
         </div>
+
+        <!-- Example 17: Qwen3-ASR -->
+        <div class="example-card" id="ex17">
+          <h4>17 &mdash; Qwen3-ASR STT Fine-Tuning</h4>
+          <p>Fine-tune Alibaba's Qwen3-ASR (audio-LLM) for multilingual speech recognition. Audio features are injected into a Qwen3 language model.</p>
+          <div class="example-tags"><span class="example-tag">FastSTTModel</span><span class="example-tag">STT</span><span class="example-tag">Qwen3-ASR</span><span class="example-tag">Audio-LLM</span></div>
+          <button class="example-toggle">View Code</button>
+          <div class="example-code" style="display:none;">
+            <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">from mlx_tune import FastSTTModel, STTSFTTrainer, STTSFTConfig, STTDataCollator
+
+model, processor = FastSTTModel.from_pretrained(
+    "mlx-community/Qwen3-ASR-1.7B-8bit",
+)
+model = FastSTTModel.get_peft_model(
+    model, r=16, lora_alpha=16,
+    target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
+    finetune_encoder=True, finetune_decoder=True,
+)
+
+dataset = load_dataset("mozilla-foundation/common_voice_16_0", "en",
+                       split="train[:10]", trust_remote_code=True)
+dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
+
+collator = STTDataCollator(model, processor, language="en", task="transcribe",
+                           audio_column="audio", text_column="sentence")
+trainer = STTSFTTrainer(
+    model=model, processor=processor,
+    data_collator=collator, train_dataset=dataset,
+    args=STTSFTConfig(output_dir="./qwen3_asr_output", max_steps=100),
+)
+trainer.train()</code></pre>
+            </div>
+            <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/17_qwen3_asr_finetuning.py" target="_blank">Full source &rarr;</a></p>
+          </div>
+        </div>
+
+        <!-- Example 18: Canary -->
+        <div class="example-card" id="ex18">
+          <h4>18 &mdash; NVIDIA Canary STT Fine-Tuning</h4>
+          <p>Fine-tune NVIDIA Canary for multilingual ASR. FastConformer encoder with Transformer decoder, supports 25+ languages and translation.</p>
+          <div class="example-tags"><span class="example-tag">FastSTTModel</span><span class="example-tag">STT</span><span class="example-tag">Canary</span><span class="example-tag">NVIDIA</span></div>
+          <button class="example-toggle">View Code</button>
+          <div class="example-code" style="display:none;">
+            <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">from mlx_tune import FastSTTModel, STTSFTTrainer, STTSFTConfig, STTDataCollator
+
+model, processor = FastSTTModel.from_pretrained(
+    "eelcor/canary-1b-v2-mlx",
+)
+model = FastSTTModel.get_peft_model(
+    model, r=16, lora_alpha=16,
+    target_modules=["q_proj", "k_proj", "v_proj", "out_proj"],
+    finetune_encoder=True, finetune_decoder=True,
+)
+
+dataset = load_dataset("mozilla-foundation/common_voice_16_0", "en",
+                       split="train[:10]", trust_remote_code=True)
+dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
+
+collator = STTDataCollator(model, processor, language="en", task="transcribe",
+                           audio_column="audio", text_column="sentence")
+trainer = STTSFTTrainer(
+    model=model, processor=processor,
+    data_collator=collator, train_dataset=dataset,
+    args=STTSFTConfig(output_dir="./canary_output", max_steps=100),
+)
+trainer.train()</code></pre>
+            </div>
+            <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/18_canary_stt_finetuning.py" target="_blank">Full source &rarr;</a></p>
+          </div>
+        </div>
+
+        <!-- Example 19: Voxtral -->
+        <div class="example-card" id="ex19">
+          <h4>19 &mdash; Voxtral STT Fine-Tuning</h4>
+          <p>Fine-tune Mistral's Voxtral Mini (3B audio-LLM). Combines an audio encoder with a Llama decoder for speech recognition.</p>
+          <div class="example-tags"><span class="example-tag">FastSTTModel</span><span class="example-tag">STT</span><span class="example-tag">Voxtral</span><span class="example-tag">Audio-LLM</span></div>
+          <button class="example-toggle">View Code</button>
+          <div class="example-code" style="display:none;">
+            <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">from mlx_tune import FastSTTModel, STTSFTTrainer, STTSFTConfig, STTDataCollator
+
+model, processor = FastSTTModel.from_pretrained(
+    "mlx-community/Voxtral-Mini-3B-2507-bf16",
+)
+model = FastSTTModel.get_peft_model(
+    model, r=16, lora_alpha=16,
+    target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
+    finetune_encoder=True, finetune_decoder=True,
+)
+
+dataset = load_dataset("mozilla-foundation/common_voice_16_0", "en",
+                       split="train[:10]", trust_remote_code=True)
+dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
+
+collator = STTDataCollator(model, processor, language="en", task="transcribe",
+                           audio_column="audio", text_column="sentence")
+trainer = STTSFTTrainer(
+    model=model, processor=processor,
+    data_collator=collator, train_dataset=dataset,
+    args=STTSFTConfig(output_dir="./voxtral_output", max_steps=100),
+)
+trainer.train()</code></pre>
+            </div>
+            <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/19_voxtral_stt_finetuning.py" target="_blank">Full source &rarr;</a></p>
+          </div>
+        </div>
       </div>
 
       <footer class="footer">
