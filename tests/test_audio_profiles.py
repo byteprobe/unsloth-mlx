@@ -542,7 +542,7 @@ class TestRegistries:
 
     def test_tts_registry_has_all_models(self):
         from mlx_tune.audio_profiles import TTS_PROFILES
-        expected = {"orpheus", "outetts", "spark", "sesame"}
+        expected = {"orpheus", "outetts", "spark", "sesame", "qwen3_tts"}
         assert set(TTS_PROFILES.keys()) == expected
 
     def test_stt_registry_has_all_models(self):
@@ -564,7 +564,7 @@ class TestRegistries:
         from mlx_tune.audio_profiles import TTS_PROFILES
         for name, profile in TTS_PROFILES.items():
             assert profile.name == name
-            assert profile.codec_type in ("snac", "dac", "bicodec", "mimi")
+            assert profile.codec_type in ("snac", "dac", "bicodec", "mimi", "qwen3_speech")
             assert profile.sample_rate > 0
             assert profile.num_codebooks >= 1
             assert len(profile.lora_target_modules) > 0

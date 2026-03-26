@@ -50,7 +50,7 @@ Bringing the [Unsloth](https://github.com/unslothai/unsloth) experience to Mac u
 - 💾 **Leverage unified memory** (up to 512GB on Mac Studio)
 - 🔄 **Unsloth-compatible API** - your existing training scripts just work!
 - 📦 **Export anywhere** - HuggingFace format, GGUF for Ollama/llama.cpp
-- 🎙️ **Audio fine-tuning** - 4 TTS models (Orpheus, OuteTTS, Spark, Sesame) + 5 STT models (Whisper, Moonshine, Qwen3-ASR, NVIDIA Canary, Voxtral)
+- 🎙️ **Audio fine-tuning** - 5 TTS models (Orpheus, OuteTTS, Spark, Sesame, Qwen3-TTS) + 5 STT models (Whisper, Moonshine, Qwen3-ASR, NVIDIA Canary, Voxtral)
 
 ```python
 # Unsloth (CUDA)                        # MLX-Tune (Apple Silicon)
@@ -78,7 +78,7 @@ Local Mac (MLX-Tune)       →     Cloud GPU (Unsloth)
 
 ## Project Status
 
-> 🚀 **v0.4.9** - Qwen3-ASR, NVIDIA Canary, Voxtral STT fine-tuning; 5 STT + 4 TTS models supported
+> 🚀 **v0.4.10** - Qwen3-TTS fine-tuning; 5 TTS + 5 STT models supported
 
 | Feature | Status | Notes |
 |---------|--------|-------|
@@ -95,7 +95,7 @@ Local Mac (MLX-Tune)       →     Cloud GPU (Unsloth)
 | Column Mapping | ✅ Stable | `apply_column_mapping()` auto-rename |
 | Dataset Config | ✅ Stable | `HFDatasetConfig` structured loading |
 | Vision Models | ✅ Stable | Full VLM fine-tuning via mlx-vlm |
-| **TTS Fine-Tuning** | ✅ Stable | **Orpheus, OuteTTS, Spark-TTS, Sesame/CSM** |
+| **TTS Fine-Tuning** | ✅ Stable | **Orpheus, OuteTTS, Spark-TTS, Sesame/CSM, Qwen3-TTS** |
 | **STT Fine-Tuning** | ✅ Stable | **Whisper, Moonshine, Qwen3-ASR, Canary, Voxtral** |
 | **`convert()`** | ✅ Stable | **HF → MLX conversion (LLM, TTS, STT)** |
 | **`push_to_hub()`** | ✅ Stable | **Upload to HuggingFace Hub** |

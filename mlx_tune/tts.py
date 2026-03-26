@@ -190,6 +190,9 @@ class FastTTSModel:
             if codec is None:
                 codec = getattr(full_model, "audio_tokenizer", None)
             if codec is None:
+                # Qwen3-TTS: speech_tokenizer is the built-in codec
+                codec = getattr(full_model, "speech_tokenizer", None)
+            if codec is None:
                 # Try to get codec from model-specific audio processors
                 if profile.codec_type == "dac":
                     try:
@@ -204,9 +207,21 @@ class FastTTSModel:
                     except Exception:
                         codec = None
 
+            # Qwen3-TTS: validate speech tokenizer encoder is available for training
+            if profile.codec_type == "qwen3_speech" and codec is not None:
+                has_encoder = getattr(codec, "has_encoder", False) or getattr(codec, "encoder_model", None) is not None
+                if not has_encoder:
+                    warnings.warn(
+                        "Qwen3-TTS speech tokenizer encoder not found. "
+                        "Audio encoding for training may not work. "
+                        "Use a model variant that includes the encoder (e.g., base model).",
+                        UserWarning,
+                    )
+
             config = {}
             if hasattr(inner_model, "config"):
-                config = inner_model.config if isinstance(inner_model.config, dict) else {}
+                cfg = inner_model.config
+                config = cfg if isinstance(cfg, dict) else {}
 
             model = inner_model
 
@@ -237,6 +252,7 @@ class FastTTSModel:
             max_seq_length=max_seq_length,
             config=config,
             profile=profile,
+            full_model=full_model if (profile and profile.loader == "mlx_audio_tts") else None,
         )
 
         sr = profile.sample_rate if profile else getattr(codec, "sampling_rate", 24000)
@@ -385,6 +401,8 @@ class TTSModelWrapper:
         codebook_size: int = ORPHEUS_CODEBOOK_SIZE,
         # Profile-based configuration (optional, overrides above if provided)
         profile: Optional[TTSModelProfile] = None,
+        # Full model reference for models that need it (Qwen3-TTS)
+        full_model: Any = None,
     ):
         # Resolve profile: use provided, or fall back to Orpheus default
         if profile is None:
@@ -394,6 +412,7 @@ class TTSModelWrapper:
         self.model = model
         self.tokenizer = tokenizer
         self.codec = codec
+        self.full_model = full_model  # For Qwen3-TTS: the complete Model with speech_tokenizer etc.
         self.model_name = model_name
         self.codec_model_name = codec_model_name
         self.max_seq_length = max_seq_length
@@ -421,6 +440,8 @@ class TTSModelWrapper:
     @property
     def sample_rate(self) -> int:
         """Audio sample rate from codec."""
+        if self.profile.codec_type == "qwen3_speech":
+            return self.profile.sample_rate
         return getattr(self.codec, "sampling_rate", 24000)
 
     def configure_lora(
@@ -513,8 +534,12 @@ class TTSModelWrapper:
 
         # Freeze base model, then apply LoRA
         self.model.freeze()
+        # Qwen3-TTS: layers are at talker.model.layers, not talker.layers
+        lora_target = self.model
+        if self.profile and self.profile.codec_type == "qwen3_speech":
+            lora_target = self.model.model
         linear_to_lora_layers(
-            model=self.model,
+            model=lora_target,
             num_layers=num_layers,
             config=mlx_lora_config,
             use_dora=use_dora,
@@ -711,12 +736,19 @@ class TTSModelWrapper:
         for name, module in self.model.named_modules():
             if hasattr(module, "fuse"):
                 fused = module.fuse(dequantize=kwargs.get("dequantize", False))
-                # Replace in model
+                # Replace in model — handle both attribute and index access
                 parts = name.split(".")
                 parent = self.model
                 for p in parts[:-1]:
-                    parent = getattr(parent, p)
-                setattr(parent, parts[-1], fused)
+                    if p.isdigit():
+                        parent = parent[int(p)]
+                    else:
+                        parent = getattr(parent, p)
+                last = parts[-1]
+                if last.isdigit():
+                    parent[int(last)] = fused
+                else:
+                    setattr(parent, last, fused)
                 fused_count += 1
 
         if fused_count > 0:
@@ -879,10 +911,16 @@ class TTSDataCollator:
                     or a single dict (for indexing from HF dataset)
 
         Returns:
-            Dict with 'input_ids' and 'labels' as mx.arrays
+            Dict with 'input_ids'/'inputs_embeds' and 'labels' as mx.arrays
         """
         if isinstance(samples, dict):
             samples = [samples]
+
+        profile = self.model.profile
+
+        # Qwen3-TTS: returns inputs_embeds (pre-computed embeddings) instead of input_ids
+        if profile.codec_type == "qwen3_speech":
+            return self._collate_qwen3_tts(samples)
 
         all_input_ids = []
         all_labels = []
@@ -912,6 +950,41 @@ class TTSDataCollator:
 
         return {
             "input_ids": mx.array(padded_input_ids),
+            "labels": mx.array(padded_labels),
+        }
+
+    def _collate_qwen3_tts(self, samples: List[Dict]) -> Dict:
+        """Collate Qwen3-TTS samples into inputs_embeds + labels."""
+        all_embeds = []
+        all_labels = []
+
+        for sample in samples:
+            embeds, labels = self._process_sample_qwen3(sample)
+            all_embeds.append(embeds)
+            all_labels.append(labels)
+
+        # Pad to same length (batch_size is forced to 1 for audio, but handle >1)
+        max_len = min(
+            max(e.shape[0] for e in all_embeds),
+            self.max_seq_length,
+        )
+        hidden_size = all_embeds[0].shape[-1]
+
+        padded_embeds = []
+        padded_labels = []
+        for emb, labs in zip(all_embeds, all_labels):
+            emb = emb[:max_len]
+            labs = labs[:max_len]
+            pad_len = max_len - emb.shape[0]
+            if pad_len > 0:
+                pad = mx.zeros((pad_len, hidden_size), dtype=emb.dtype)
+                emb = mx.concatenate([emb, pad], axis=0)
+                labs = labs + [-100] * pad_len
+            padded_embeds.append(emb)
+            padded_labels.append(labs)
+
+        return {
+            "inputs_embeds": mx.stack(padded_embeds, axis=0),
             "labels": mx.array(padded_labels),
         }
 
@@ -1005,6 +1078,154 @@ class TTSDataCollator:
             labels = [-100] * num_masked + audio_codes + self.model.end_tokens
 
         return input_ids, labels
+
+    def _process_sample_qwen3(self, sample: Dict) -> Tuple["mx.array", List[int]]:
+        """
+        Process a Qwen3-TTS sample into inputs_embeds and labels.
+
+        Builds combined text+codec embeddings for teacher-forcing training:
+        - Text conditioning via text_embedding + text_projection
+        - Audio codes via codec_embedding (summed across all 16 codebooks)
+        - Labels: code_0 tokens only (talker predicts first codebook)
+
+        Returns:
+            (inputs_embeds, labels) where inputs_embeds is [seq_len, hidden_size]
+        """
+        import mlx.nn as nn
+
+        profile = self.model.profile
+        talker = self.model.model  # Qwen3TTSTalkerForConditionalGeneration
+
+        # Get text
+        text = sample.get(self.text_column, "")
+
+        # Get audio
+        audio_data = sample.get(self.audio_column)
+        if audio_data is None:
+            raise ValueError(f"Sample missing '{self.audio_column}' column")
+
+        if isinstance(audio_data, dict):
+            audio_array = audio_data.get("array", audio_data.get("data"))
+            sr = audio_data.get("sampling_rate", self.model.sample_rate)
+        elif isinstance(audio_data, np.ndarray):
+            audio_array = audio_data
+            sr = self.model.sample_rate
+        else:
+            audio_array = np.array(audio_data)
+            sr = self.model.sample_rate
+
+        if audio_array is None:
+            raise ValueError("Could not extract audio array from sample")
+        audio_array = np.array(audio_array, dtype=np.float32)
+
+        # --- Encode audio to all 16 codebooks ---
+        from mlx_tune.audio_codecs import Qwen3SpeechCodecAdapter
+        adapter = self.model.codec_adapter
+        if not isinstance(adapter, Qwen3SpeechCodecAdapter):
+            raise TypeError("Expected Qwen3SpeechCodecAdapter for qwen3_speech codec type")
+        all_codes = adapter.encode_all_codebooks(audio_array, sr)  # mx.array [16, T]
+        T = all_codes.shape[1]
+
+        # --- Get model config for special token IDs ---
+        full_model = self.model.full_model
+        if full_model is not None and hasattr(full_model, "config"):
+            model_config = full_model.config
+        else:
+            model_config = None
+
+        # Special token IDs from ModelConfig
+        tts_bos_id = getattr(model_config, "tts_bos_token_id", 151672)
+        tts_eos_id = getattr(model_config, "tts_eos_token_id", 151673)
+        tts_pad_id = getattr(model_config, "tts_pad_token_id", 151671)
+
+        talker_config = getattr(model_config, "talker_config", None) if model_config else None
+        codec_bos_id = getattr(talker_config, "codec_bos_id", 2149)
+        codec_eos_id = getattr(talker_config, "codec_eos_token_id", 2150)
+        codec_pad_id = getattr(talker_config, "codec_pad_id", 2148)
+        codec_nothink_id = getattr(talker_config, "codec_nothink_id", 2155)
+        codec_think_bos_id = getattr(talker_config, "codec_think_bos_id", 2156)
+        codec_think_eos_id = getattr(talker_config, "codec_think_eos_id", 2157)
+
+        # --- Build text embeddings ---
+        chat_text = f"<|im_start|>assistant\n{text}<|im_end|>\n<|im_start|>assistant\n"
+        text_ids = mx.array(self.tokenizer.encode(chat_text))[None, :]
+        text_embed = talker.text_projection(
+            talker.get_text_embeddings()(text_ids)
+        )  # [1, text_len, hidden]
+
+        # TTS special token embeddings
+        tts_tokens = mx.array([[tts_bos_id, tts_eos_id, tts_pad_id]])
+        tts_embeds = talker.text_projection(
+            talker.get_text_embeddings()(tts_tokens)
+        )
+        tts_bos_embed = tts_embeds[:, 0:1, :]
+        tts_eos_embed = tts_embeds[:, 1:2, :]
+        tts_pad_embed = tts_embeds[:, 2:3, :]
+
+        # --- Build codec prefix embeddings ---
+        codec_prefill = [codec_nothink_id, codec_think_bos_id, codec_think_eos_id]
+        codec_prefix_embed = talker.get_input_embeddings()(mx.array([codec_prefill]))
+        codec_suffix_embed = talker.get_input_embeddings()(
+            mx.array([[codec_pad_id, codec_bos_id]])
+        )
+        codec_prefix_embed = mx.concatenate([codec_prefix_embed, codec_suffix_embed], axis=1)
+        # codec_prefix_embed: [1, 5, hidden]
+
+        # --- Build prefix (replicating _prepare_generation_inputs) ---
+        role_embed = text_embed[:, :3, :]  # <|im_start|>assistant\n
+        hidden_size = role_embed.shape[-1]
+
+        pad_count = codec_prefix_embed.shape[1] - 2  # 3
+        pad_embeds = mx.broadcast_to(tts_pad_embed, (1, pad_count, hidden_size))
+        combined_prefix = mx.concatenate([pad_embeds, tts_bos_embed], axis=1)  # [1, 4, h]
+        combined_prefix = combined_prefix + codec_prefix_embed[:, :-1, :]
+
+        # First text token added to last codec prefix token
+        first_text_embed = text_embed[:, 3:4, :] + codec_prefix_embed[:, -1:, :]
+
+        prefix_embeds = mx.concatenate([role_embed, combined_prefix, first_text_embed], axis=1)
+        # prefix_embeds: [1, prefix_len, hidden]
+        prefix_len = prefix_embeds.shape[1]
+
+        # --- Build audio portion (teacher forcing, vectorized) ---
+        # Sum all 16 codebook embeddings at each timestep
+        codec_combined = talker.get_input_embeddings()(all_codes[0:1, :])  # code_0: [1, T, hidden]
+        for cb_idx in range(1, 16):
+            codec_combined = codec_combined + talker.code_predictor.codec_embedding[cb_idx - 1](
+                all_codes[cb_idx:cb_idx + 1, :]
+            )
+
+        # Align text embeddings to audio length T
+        trailing_text = mx.concatenate(
+            [text_embed[:, 4:-5, :], tts_eos_embed], axis=1
+        )  # text tokens 4..end-5, then tts_eos
+        trail_len = trailing_text.shape[1]
+
+        if trail_len < T:
+            pad_fill = mx.broadcast_to(tts_pad_embed, (1, T - trail_len, hidden_size))
+            aligned_text = mx.concatenate([trailing_text, pad_fill], axis=1)
+        elif trail_len > T:
+            aligned_text = trailing_text[:, :T, :]
+        else:
+            aligned_text = trailing_text
+
+        audio_embeds = aligned_text + codec_combined  # [1, T, hidden]
+
+        # EOS position (model learns to predict EOS after last audio token)
+        eos_codec_embed = talker.get_input_embeddings()(mx.array([[codec_eos_id]]))
+        eos_embed = tts_pad_embed + eos_codec_embed  # [1, 1, hidden]
+
+        # --- Full inputs_embeds ---
+        inputs_embeds = mx.concatenate([prefix_embeds, audio_embeds, eos_embed], axis=1)
+        # [1, prefix_len + T + 1, hidden]
+
+        mx.eval(inputs_embeds)
+
+        # --- Labels ---
+        code_0_list = np.array(all_codes[0]).flatten().tolist()
+        labels = [-100] * prefix_len + code_0_list + [codec_eos_id]
+
+        return inputs_embeds[0], labels  # Remove batch dim: [seq_len, hidden]
 
 
 class TTSSFTTrainer:
@@ -1106,11 +1327,18 @@ class TTSSFTTrainer:
         print(f"  Learning rate: {self.learning_rate}")
 
         # Loss function: standard cross-entropy (TTS is next-token prediction)
+        is_qwen3_tts = (self.wrapper and self.wrapper.profile.codec_type == "qwen3_speech")
+
         def loss_fn(model, batch):
-            input_ids = batch["input_ids"]
             labels = batch["labels"]
 
-            logits = model(input_ids)
+            if "inputs_embeds" in batch:
+                # Qwen3-TTS: forward with pre-computed embeddings
+                result = model(batch["inputs_embeds"])
+                logits = result[0] if isinstance(result, tuple) else result
+            else:
+                # Standard path: forward with input_ids
+                logits = model(batch["input_ids"])
 
             # Handle models that return objects instead of raw tensors
             if hasattr(logits, "logits"):

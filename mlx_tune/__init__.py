@@ -15,7 +15,7 @@ Supported Training Methods:
 - STT (Speech-to-Text) fine-tuning
 """
 
-__version__ = "0.4.9"  # Qwen3-ASR, Canary, Voxtral STT support
+__version__ = "0.4.10"  # Qwen3-TTS fine-tuning support
 
 from mlx_tune.model import FastLanguageModel
 from mlx_tune.trainer import (

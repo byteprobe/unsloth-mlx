@@ -443,6 +443,77 @@ class MimiCodecAdapter:
 
 
 # ---------------------------------------------------------------------------
+# Qwen3 Speech Codec Adapter (Qwen3-TTS)
+# ---------------------------------------------------------------------------
+
+class Qwen3SpeechCodecAdapter:
+    """
+    Adapter for Qwen3-TTS's built-in speech tokenizer.
+
+    Qwen3-TTS uses a custom 16-codebook speech tokenizer (Split RVQ at 12.5Hz).
+    The talker model predicts only code_0 (first codebook); the code predictor
+    generates code_1-15 during inference.
+
+    For training, encode() returns code_0 only (for labels), while
+    encode_all_codebooks() returns all 16 codebooks (needed to build
+    combined input embeddings for teacher forcing).
+    """
+
+    def __init__(self, profile: TTSModelProfile, speech_tokenizer):
+        self._profile = profile
+        self._speech_tokenizer = speech_tokenizer
+
+    @property
+    def sample_rate(self) -> int:
+        return self._profile.sample_rate
+
+    @property
+    def num_codebooks(self) -> int:
+        return self._profile.num_codebooks
+
+    def _encode_raw(self, audio: Union[np.ndarray, "mx.array"], sr: int) -> "mx.array":
+        """Encode audio to all 16 codebooks. Returns mx.array [1, 16, T]."""
+        if isinstance(audio, np.ndarray):
+            audio = mx.array(audio, dtype=mx.float32)
+        if audio.ndim == 1:
+            audio = audio[None, None, :]  # [1, 1, samples]
+        elif audio.ndim == 2:
+            audio = audio[None, :]  # [1, channels, samples]
+        codes = self._speech_tokenizer.encode(audio)  # [1, 16, T]
+        mx.eval(codes)
+        return codes
+
+    def encode(self, audio: Union[np.ndarray, "mx.array"], sr: int) -> List[int]:
+        """Encode audio to code_0 tokens only (for training labels)."""
+        codes = self._encode_raw(audio, sr)  # [1, 16, T]
+        code_0 = codes[0, 0, :]  # [T]
+        return np.array(code_0).flatten().tolist()
+
+    def encode_all_codebooks(self, audio: Union[np.ndarray, "mx.array"], sr: int) -> "mx.array":
+        """Encode audio to all 16 codebooks. Returns mx.array [16, T]."""
+        codes = self._encode_raw(audio, sr)  # [1, 16, T]
+        return codes[0]  # [16, T]
+
+    def decode(self, token_ids: List[int]) -> np.ndarray:
+        """Decode is not supported — use model.generate() for Qwen3-TTS inference."""
+        raise NotImplementedError(
+            "Qwen3-TTS decoding requires the full model (talker + code_predictor + "
+            "speech_tokenizer decoder). Use the model's generate() method instead."
+        )
+
+    def interleave(self, codes: List) -> List[int]:
+        """Return code_0 as flat list (no interleaving needed)."""
+        if not codes:
+            return []
+        c = np.array(codes[0]).flatten()
+        return c.tolist()
+
+    def deinterleave(self, token_ids: List[int]) -> List[np.ndarray]:
+        """Wrap flat code_0 tokens in a single-element list."""
+        return [np.array(token_ids, dtype=np.int32)]
+
+
+# ---------------------------------------------------------------------------
 # Factory
 # ---------------------------------------------------------------------------
 
@@ -468,8 +539,10 @@ def create_codec(profile: TTSModelProfile, codec_model) -> "CodecAdapter":
         return BiCodecAdapter(profile, codec_model)
     elif profile.codec_type == "mimi":
         return MimiCodecAdapter(profile, codec_model)
+    elif profile.codec_type == "qwen3_speech":
+        return Qwen3SpeechCodecAdapter(profile, codec_model)
     else:
         raise ValueError(
             f"Unsupported codec type: {profile.codec_type}. "
-            f"Supported: snac, dac, bicodec, mimi"
+            f"Supported: snac, dac, bicodec, mimi, qwen3_speech"
         )

@@ -45,6 +45,7 @@
         <li class="sub-item"><a href="#tts-orpheus">Orpheus</a></li>
         <li class="sub-item"><a href="#tts-outetts">OuteTTS</a></li>
         <li class="sub-item"><a href="#tts-spark">Spark-TTS</a></li>
+        <li class="sub-item"><a href="#tts-qwen3tts">Qwen3-TTS</a></li>
         <li class="sub-item"><a href="#FastTTSModel">FastTTSModel API</a></li>
         <li class="sub-item"><a href="#TTSSFTTrainer">TTSSFTTrainer</a></li>
         <li><a href="#stt">Speech-to-Text</a></li>
@@ -104,6 +105,7 @@ brew install ffmpeg</code></pre>
             <tr><td><strong>OuteTTS-1B</strong></td><td>1B</td><td>DAC</td><td>24 kHz</td><td>Llama (decoder-only)</td></tr>
             <tr><td><strong>Spark-TTS</strong></td><td>0.5B</td><td>BiCodec</td><td>16 kHz</td><td>Qwen2 (decoder-only)</td></tr>
             <tr><td><strong>Sesame/CSM-1B</strong></td><td>1B</td><td>Mimi</td><td>24 kHz</td><td>Backbone + Decoder</td></tr>
+            <tr><td><strong>Qwen3-TTS</strong></td><td>1.7B</td><td>Built-in (16-codebook Split RVQ)</td><td>24 kHz</td><td>Talker (decoder-only)</td></tr>
           </tbody>
         </table>
 
@@ -210,6 +212,32 @@ trainer.train()</code></pre>
           </div>
         </div>
 
+        <!-- Qwen3-TTS -->
+        <div class="api-entry" id="tts-qwen3tts">
+          <h3>Qwen3-TTS (1.7B)</h3>
+          <p>Alibaba's multilingual TTS model (ZH, EN, JA, KO, +more) with voice design. Uses a 28-layer talker transformer that predicts discrete audio codes, with a built-in 16-codebook speech tokenizer at 12.5Hz. Unique dual-embedding architecture where text and codec tokens are added together.</p>
+          <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">from mlx_tune import FastTTSModel, TTSSFTTrainer, TTSSFTConfig, TTSDataCollator
+from datasets import load_dataset, Audio
+
+model, tokenizer = FastTTSModel.from_pretrained(
+    "mlx-community/Qwen3-TTS-12Hz-1.7B-VoiceDesign-bf16",
+)
+model = FastTTSModel.get_peft_model(model, r=16, lora_alpha=16)
+
+dataset = load_dataset("MrDragonFox/Elise", split="train[:100]")
+dataset = dataset.cast_column("audio", Audio(sampling_rate=24000))
+
+collator = TTSDataCollator(model, tokenizer)
+trainer = TTSSFTTrainer(
+    model=model, tokenizer=tokenizer,
+    data_collator=collator, train_dataset=dataset,
+    args=TTSSFTConfig(output_dir="./qwen3_tts_output", max_steps=60),
+)
+trainer.train()</code></pre>
+          </div>
+        </div>
+
         <!-- FastTTSModel -->
         <div class="api-entry" id="FastTTSModel">
           <h3>FastTTSModel API</h3>
@@ -223,7 +251,7 @@ trainer.train()</code></pre>
           <table class="api-params">
             <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
             <tbody>
-              <tr><td><code>model_name</code></td><td>str</td><td>HuggingFace model ID or local path. Supported: Orpheus, OuteTTS, Spark-TTS, Sesame/CSM</td></tr>
+              <tr><td><code>model_name</code></td><td>str</td><td>HuggingFace model ID or local path. Supported: Orpheus, OuteTTS, Spark-TTS, Sesame/CSM, Qwen3-TTS</td></tr>
               <tr><td><code>max_seq_length</code></td><td>int</td><td>Maximum sequence length for training/inference</td></tr>
               <tr><td><code>codec_model</code></td><td>str, optional</td><td>Override codec model ID. Auto-detected from profile if not specified</td></tr>
               <tr><td><code>load_in_4bit</code></td><td>bool</td><td>Load model with 4-bit quantization</td></tr>
@@ -683,7 +711,7 @@ FastTTSModel.convert(
           <div class="callout-title">Sample Rates</div>
           <p>Different models use different sample rates. Always cast your dataset audio column to match:</p>
           <ul style="margin: 8px 0 0 16px;">
-            <li><strong>24 kHz</strong>: Orpheus, OuteTTS, Sesame/CSM</li>
+            <li><strong>24 kHz</strong>: Orpheus, OuteTTS, Sesame/CSM, Qwen3-TTS</li>
             <li><strong>16 kHz</strong>: Spark-TTS, Whisper, Distil-Whisper, Moonshine, Qwen3-ASR, Canary, Voxtral</li>
           </ul>
           <p style="margin-top:8px;"><code>dataset.cast_column("audio", Audio(sampling_rate=24000))</code></p>

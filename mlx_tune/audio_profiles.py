@@ -35,7 +35,7 @@ class TTSModelProfile:
     architecture: str  # "decoder_only" | "backbone_decoder"
 
     # Audio codec
-    codec_type: str  # "snac" | "dac" | "bicodec" | "mimi"
+    codec_type: str  # "snac" | "dac" | "bicodec" | "mimi" | "qwen3_speech"
     codec_repo: str  # default codec model repo
     sample_rate: int  # codec output sample rate
 
@@ -224,6 +224,27 @@ _SESAME_PROFILE = TTSModelProfile(
     inner_model_attr="model",  # SesameModel has backbone and decoder
 )
 
+_QWEN3_TTS_PROFILE = TTSModelProfile(
+    name="qwen3_tts",
+    architecture="decoder_only",
+    codec_type="qwen3_speech",  # Built-in speech tokenizer (16 codebooks, 12.5Hz)
+    codec_repo="",  # Codec is part of the model (speech_tokenizer)
+    sample_rate=24000,
+    start_token=2149,       # codec_bos_id
+    end_tokens=(2150,),     # codec_eos_token_id
+    audio_token_offset=0,
+    codebook_size=2048,
+    num_codebooks=16,       # All 16 codebooks needed for input embedding construction
+    interleave_pattern=(1,),  # Only code_0 is predicted by the talker
+    token_format="numeric",
+    prompt_template="{text}",  # Text handled via separate embedding path
+    default_speaker="",
+    lora_target_modules=_LLAMA_LORA_MODULES,
+    lora_module_mapping=_LLAMA_LORA_MAPPING,
+    loader="mlx_audio_tts",
+    inner_model_attr="talker",  # LoRA applied to talker's transformer layers
+)
+
 
 # ---------------------------------------------------------------------------
 # STT Profiles
@@ -323,6 +344,7 @@ TTS_PROFILES: Dict[str, TTSModelProfile] = {
     "outetts": _OUTETTS_PROFILE,
     "spark": _SPARK_PROFILE,
     "sesame": _SESAME_PROFILE,
+    "qwen3_tts": _QWEN3_TTS_PROFILE,
 }
 
 STT_PROFILES: Dict[str, STTModelProfile] = {
@@ -343,6 +365,7 @@ _TTS_PATTERNS: Dict[str, List[str]] = {
     "outetts": [r"outetts", r"outeai.*outetts"],
     "spark": [r"spark[-_]?tts", r"sparkaudio"],
     "sesame": [r"sesame", r"csm[-_]?1b", r"marvis"],
+    "qwen3_tts": [r"qwen3[-_]?tts", r"Qwen3[-_]?TTS"],
 }
 
 _STT_PATTERNS: Dict[str, List[str]] = {

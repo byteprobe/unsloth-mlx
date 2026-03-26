@@ -685,3 +685,133 @@ class TestTTSConstants:
         assert ORPHEUS_END_TOKENS == [128009, 128260]
         assert ORPHEUS_AUDIO_TOKEN_OFFSET == 128266
         assert ORPHEUS_CODEBOOK_SIZE == 4096
+
+
+# ============================================================================
+# Qwen3-TTS Profile & Codec Tests
+# ============================================================================
+
+
+class TestQwen3TTSProfile:
+    """Test Qwen3-TTS profile registration and auto-detection."""
+
+    def test_profile_registered(self):
+        from mlx_tune.audio_profiles import TTS_PROFILES
+        assert "qwen3_tts" in TTS_PROFILES
+
+    def test_profile_values(self):
+        from mlx_tune.audio_profiles import TTS_PROFILES
+        p = TTS_PROFILES["qwen3_tts"]
+        assert p.name == "qwen3_tts"
+        assert p.codec_type == "qwen3_speech"
+        assert p.sample_rate == 24000
+        assert p.num_codebooks == 16
+        assert p.codebook_size == 2048
+        assert p.start_token == 2149
+        assert p.end_tokens == (2150,)
+        assert p.loader == "mlx_audio_tts"
+        assert p.inner_model_attr == "talker"
+        assert p.token_format == "numeric"
+
+    def test_auto_detection(self):
+        from mlx_tune.audio_profiles import detect_tts_model_type
+        assert detect_tts_model_type("mlx-community/Qwen3-TTS-12Hz-1.7B-VoiceDesign-bf16") == "qwen3_tts"
+        assert detect_tts_model_type("qwen3-tts-base") == "qwen3_tts"
+        assert detect_tts_model_type("Qwen3_TTS_model") == "qwen3_tts"
+
+    def test_auto_detection_negative(self):
+        from mlx_tune.audio_profiles import detect_tts_model_type
+        # Should not match STT models
+        assert detect_tts_model_type("qwen3-asr-model") != "qwen3_tts"
+        assert detect_tts_model_type("some-random-model") is None
+
+    def test_config_fallback_detection(self):
+        from mlx_tune.audio_profiles import detect_tts_model_type
+        assert detect_tts_model_type("unknown-model", {"model_type": "qwen3_tts"}) == "qwen3_tts"
+
+    def test_lora_mapping(self):
+        from mlx_tune.audio_profiles import TTS_PROFILES
+        p = TTS_PROFILES["qwen3_tts"]
+        assert "q_proj" in p.lora_target_modules
+        assert "gate_proj" in p.lora_target_modules
+        assert p.lora_module_mapping["q_proj"] == "self_attn.q_proj"
+        assert p.lora_module_mapping["gate_proj"] == "mlp.gate_proj"
+
+
+class TestQwen3SpeechCodecAdapter:
+    """Test the Qwen3SpeechCodecAdapter."""
+
+    def test_create_codec(self):
+        from mlx_tune.audio_profiles import TTS_PROFILES
+        from mlx_tune.audio_codecs import create_codec, Qwen3SpeechCodecAdapter
+        profile = TTS_PROFILES["qwen3_tts"]
+        mock_speech_tok = MagicMock()
+        adapter = create_codec(profile, mock_speech_tok)
+        assert isinstance(adapter, Qwen3SpeechCodecAdapter)
+
+    def test_properties(self):
+        from mlx_tune.audio_profiles import TTS_PROFILES
+        from mlx_tune.audio_codecs import Qwen3SpeechCodecAdapter
+        profile = TTS_PROFILES["qwen3_tts"]
+        adapter = Qwen3SpeechCodecAdapter(profile, MagicMock())
+        assert adapter.sample_rate == 24000
+        assert adapter.num_codebooks == 16
+
+    def test_decode_raises(self):
+        from mlx_tune.audio_profiles import TTS_PROFILES
+        from mlx_tune.audio_codecs import Qwen3SpeechCodecAdapter
+        profile = TTS_PROFILES["qwen3_tts"]
+        adapter = Qwen3SpeechCodecAdapter(profile, MagicMock())
+        with pytest.raises(NotImplementedError, match="Qwen3-TTS decoding"):
+            adapter.decode([1, 2, 3])
+
+    def test_interleave_returns_code_0(self):
+        from mlx_tune.audio_profiles import TTS_PROFILES
+        from mlx_tune.audio_codecs import Qwen3SpeechCodecAdapter
+        profile = TTS_PROFILES["qwen3_tts"]
+        adapter = Qwen3SpeechCodecAdapter(profile, MagicMock())
+        result = adapter.interleave([np.array([10, 20, 30])])
+        assert result == [10, 20, 30]
+
+    def test_deinterleave(self):
+        from mlx_tune.audio_profiles import TTS_PROFILES
+        from mlx_tune.audio_codecs import Qwen3SpeechCodecAdapter
+        profile = TTS_PROFILES["qwen3_tts"]
+        adapter = Qwen3SpeechCodecAdapter(profile, MagicMock())
+        result = adapter.deinterleave([10, 20, 30])
+        assert len(result) == 1
+        np.testing.assert_array_equal(result[0], [10, 20, 30])
+
+
+class TestQwen3TTSWrapper:
+    """Test TTSModelWrapper with Qwen3-TTS profile."""
+
+    def _make_qwen3_wrapper(self):
+        from mlx_tune.tts import TTSModelWrapper
+        from mlx_tune.audio_profiles import TTS_PROFILES
+        mock_model = MagicMock()
+        mock_tokenizer = MagicMock()
+        mock_codec = MagicMock()
+        mock_full_model = MagicMock()
+        profile = TTS_PROFILES["qwen3_tts"]
+        return TTSModelWrapper(
+            model=mock_model,
+            tokenizer=mock_tokenizer,
+            codec=mock_codec,
+            model_name="mlx-community/Qwen3-TTS-12Hz-1.7B-VoiceDesign-bf16",
+            profile=profile,
+            full_model=mock_full_model,
+        )
+
+    def test_sample_rate(self):
+        wrapper = self._make_qwen3_wrapper()
+        assert wrapper.sample_rate == 24000
+
+    def test_profile_set(self):
+        wrapper = self._make_qwen3_wrapper()
+        assert wrapper.profile.name == "qwen3_tts"
+        assert wrapper.profile.codec_type == "qwen3_speech"
+
+    def test_full_model_stored(self):
+        wrapper = self._make_qwen3_wrapper()
+        assert wrapper.full_model is not None

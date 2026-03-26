@@ -480,6 +480,42 @@ trainer.train()</code></pre>
           </div>
         </div>
 
+        <!-- Example 20: Qwen3-TTS -->
+        <div class="example-card" id="ex20">
+          <h4>20 &mdash; Qwen3-TTS Fine-Tuning</h4>
+          <p>Fine-tune Alibaba's Qwen3-TTS (1.7B) for multilingual text-to-speech. Dual-embedding architecture with 16-codebook built-in speech tokenizer.</p>
+          <div class="example-tags"><span class="example-tag">FastTTSModel</span><span class="example-tag">TTS</span><span class="example-tag">Qwen3-TTS</span><span class="example-tag">Multilingual</span></div>
+          <button class="example-toggle">View Code</button>
+          <div class="example-code" style="display:none;">
+            <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">from mlx_tune import FastTTSModel, TTSSFTTrainer, TTSSFTConfig, TTSDataCollator
+from datasets import load_dataset, Audio
+
+model, tokenizer = FastTTSModel.from_pretrained(
+    "mlx-community/Qwen3-TTS-12Hz-1.7B-VoiceDesign-bf16",
+)
+model = FastTTSModel.get_peft_model(
+    model, r=16, lora_alpha=16,
+    target_modules=["q_proj", "k_proj", "v_proj", "o_proj",
+                    "gate_proj", "up_proj", "down_proj"],
+)
+
+dataset = load_dataset("MrDragonFox/Elise", split="train[:10]")
+dataset = dataset.cast_column("audio", Audio(sampling_rate=24000))
+
+collator = TTSDataCollator(model=model, tokenizer=tokenizer,
+                           text_column="text", audio_column="audio")
+trainer = TTSSFTTrainer(
+    model=model, tokenizer=tokenizer,
+    data_collator=collator, train_dataset=dataset,
+    args=TTSSFTConfig(output_dir="./qwen3_tts_output", max_steps=60),
+)
+trainer.train()</code></pre>
+            </div>
+            <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/20_qwen3_tts_finetuning.py" target="_blank">Full source &rarr;</a></p>
+          </div>
+        </div>
+
         <div class="example-card">
           <h4>16 &mdash; Moonshine STT Fine-Tuning</h4>
           <p>Fine-tune Moonshine for speech-to-text with raw conv frontend (no mel spectrogram).</p>
