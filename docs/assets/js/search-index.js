@@ -33,6 +33,7 @@ window.MLX_SEARCH_INDEX = [
   { title: "UnslothVisionDataCollator", section: "Data Collation", url: "vlm.html#data-collator", tags: "unslothvisiondatacollator collator data image batch", page: "VLM" },
   { title: "VLMGRPOTrainer", section: "Vision GRPO", url: "vlm.html#vlm-grpo", tags: "vlmgrpo vision grpo reward function rl reasoning", page: "VLM" },
   { title: "Gemma 4", section: "Gemma 4 VLM Support", url: "vlm.html", tags: "gemma 4 gemma4 e2b e4b 26b 31b google vision multimodal", page: "VLM" },
+  { title: "Gemma 4 Audio", section: "Audio Fine-Tuning (STT/ASR)", url: "vlm.html#tips", tags: "gemma 4 audio stt asr conformer speech transcribe finetune_audio_layers", page: "VLM" },
 
   // --- OCR ---
   { title: "OCR Fine-Tuning", section: "Overview", url: "ocr.html", tags: "ocr document understanding text recognition", page: "OCR" },
@@ -47,6 +48,7 @@ window.MLX_SEARCH_INDEX = [
   { title: "STT Fine-Tuning", section: "Speech-to-Text", url: "audio.html#stt", tags: "stt speech text whisper moonshine qwen3-asr canary voxtral", page: "Audio" },
   { title: "FastSTTModel", section: "STT Model Loading", url: "audio.html#stt", tags: "faststtmodel stt load whisper moonshine", page: "Audio" },
   { title: "Audio Codecs", section: "SNAC / DAC / BiCodec / Mimi", url: "audio.html#codecs", tags: "codec snac dac bicodec mimi audio tokenizer", page: "Audio" },
+  { title: "Gemma 4 Audio (VLM)", section: "Conformer STT via VLM pipeline", url: "audio.html#models", tags: "gemma 4 audio conformer stt asr vlm fastvisionmodel", page: "Audio" },
 
   // --- Workflow ---
   { title: "Unsloth to mlx-tune", section: "Migration Guide", url: "workflow.html", tags: "unsloth migration import translate convert cuda mlx", page: "Workflow" },
@@ -69,6 +71,8 @@ window.MLX_SEARCH_INDEX = [
   { title: "CPT Domain Knowledge", section: "Example 44", url: "examples.html#cpt", tags: "cpt domain knowledge medical scientific example 44", page: "Examples" },
   { title: "CPT Code Capabilities", section: "Example 45", url: "examples.html#cpt", tags: "cpt code programming capabilities example 45 mlx", page: "Examples" },
   { title: "LFM2 + CPT", section: "Example 46", url: "examples.html#cpt", tags: "lfm2 cpt continual pretraining domain adaptation example 46", page: "Examples" },
+  { title: "Gemma 4 Audio ASR", section: "Example 47", url: "examples.html#vlm", tags: "gemma 4 audio asr stt example 47 conformer transcribe", page: "Examples" },
+  { title: "Gemma 4 Audio Understanding", section: "Example 48", url: "examples.html#vlm", tags: "gemma 4 audio understanding qa example 48 tower lora", page: "Examples" },
 
   // --- Troubleshooting ---
   { title: "Troubleshooting", section: "Common Issues", url: "troubleshooting.html", tags: "troubleshoot error fix help debug issue", page: "Help" },

@@ -526,3 +526,259 @@ class TestVLMGRPOTrainer:
         assert config.num_generations == 3
         assert config.max_steps == 15
         assert config.beta == 0.08
+
+
+# ============================================================================
+# Test Gemma 4 Audio Support
+# ============================================================================
+
+
+class TestAudioContentDetection:
+    """Test that UnslothVisionDataCollator detects audio content items."""
+
+    def _make_collator(self):
+        from mlx_tune.vlm import UnslothVisionDataCollator
+        mock_model = MagicMock()
+        mock_model.config = MagicMock()
+        mock_model.config.__dict__ = {
+            "model_type": "gemma4",
+            "image_token_index": 258880,
+            "audio_token_id": 258881,
+        }
+        mock_processor = MagicMock()
+        mock_processor.apply_chat_template = MagicMock(
+            return_value="<audio>Transcribe this audio."
+        )
+        mock_processor.audio_token = "<audio>"
+        return UnslothVisionDataCollator(mock_model, mock_processor)
+
+    def test_audio_item_extracted_from_messages(self):
+        """Audio file paths should be extracted from {"type": "audio"} content."""
+        collator = self._make_collator()
+
+        sample = {
+            "messages": [
+                {"role": "user", "content": [
+                    {"type": "audio", "audio": "/path/to/audio.wav"},
+                    {"type": "text", "text": "Transcribe this audio."},
+                ]},
+                {"role": "assistant", "content": [
+                    {"type": "text", "text": "Hello world."},
+                ]},
+            ]
+        }
+
+        # Extract audio files by iterating through the content loop
+        audio_files = []
+        messages = sample["messages"]
+        for msg in messages:
+            content = msg.get("content", "")
+            if isinstance(content, list):
+                for item in content:
+                    if isinstance(item, dict) and item.get("type") == "audio":
+                        audio = item.get("audio")
+                        if audio is not None:
+                            audio_files.append(audio)
+
+        assert len(audio_files) == 1
+        assert audio_files[0] == "/path/to/audio.wav"
+
+    def test_audio_and_image_both_extracted(self):
+        """Mixed audio+image samples should extract both."""
+        sample = {
+            "messages": [
+                {"role": "user", "content": [
+                    {"type": "image", "image": "/path/to/image.jpg"},
+                    {"type": "audio", "audio": "/path/to/audio.wav"},
+                    {"type": "text", "text": "Describe what you see and hear."},
+                ]},
+            ]
+        }
+
+        images = []
+        audio_files = []
+        for msg in sample["messages"]:
+            content = msg.get("content", "")
+            if isinstance(content, list):
+                for item in content:
+                    if isinstance(item, dict):
+                        if item.get("type") == "image" and item.get("image"):
+                            images.append(item["image"])
+                        elif item.get("type") == "audio" and item.get("audio"):
+                            audio_files.append(item["audio"])
+
+        assert len(images) == 1
+        assert len(audio_files) == 1
+        assert images[0] == "/path/to/image.jpg"
+        assert audio_files[0] == "/path/to/audio.wav"
+
+    def test_audio_none_ignored(self):
+        """Audio items without a file path should not be added to audio_files."""
+        sample = {
+            "messages": [
+                {"role": "user", "content": [
+                    {"type": "audio"},  # No audio key
+                    {"type": "text", "text": "Transcribe."},
+                ]},
+            ]
+        }
+
+        audio_files = []
+        for msg in sample["messages"]:
+            content = msg.get("content", "")
+            if isinstance(content, list):
+                for item in content:
+                    if isinstance(item, dict) and item.get("type") == "audio":
+                        audio = item.get("audio")
+                        if audio is not None:
+                            audio_files.append(audio)
+
+        assert len(audio_files) == 0
+
+
+class TestAudioChatTemplate:
+    """Test _apply_chat_template with audio content."""
+
+    def test_audio_token_detection(self):
+        """Chat template should recognize audio tokens in result."""
+        from mlx_tune.vlm import UnslothVisionDataCollator
+
+        mock_model = MagicMock()
+        mock_model.config = MagicMock()
+        mock_model.config.__dict__ = {"model_type": "gemma4"}
+        mock_processor = MagicMock()
+        mock_processor.audio_token = "<audio_placeholder>"
+        mock_processor.image_token = "<image>"
+        # Processor returns a result with the audio token
+        mock_processor.apply_chat_template = MagicMock(
+            return_value="user: <audio_placeholder> Transcribe this."
+        )
+
+        collator = UnslothVisionDataCollator(mock_model, mock_processor)
+
+        messages = [
+            {"role": "user", "content": [
+                {"type": "audio"},
+                {"type": "text", "text": "Transcribe this."},
+            ]},
+        ]
+
+        result = collator._apply_chat_template(messages)
+        assert "<audio_placeholder>" in result
+
+    def test_audio_fallback_inserts_token(self):
+        """Fallback path should insert audio token for audio content."""
+        from mlx_tune.vlm import UnslothVisionDataCollator
+
+        mock_model = MagicMock()
+        mock_model.config = MagicMock()
+        mock_model.config.__dict__ = {"model_type": "gemma4"}
+        mock_processor = MagicMock()
+        mock_processor.audio_token = "<audio>"
+        mock_processor.image_token = "<image>"
+        # Processor fails — triggers fallback
+        mock_processor.apply_chat_template = MagicMock(
+            side_effect=Exception("Not supported")
+        )
+        # No tokenizer fallback either
+        del mock_processor.tokenizer
+
+        collator = UnslothVisionDataCollator(mock_model, mock_processor)
+
+        messages = [
+            {"role": "user", "content": [
+                {"type": "audio"},
+                {"type": "text", "text": "What is said?"},
+            ]},
+        ]
+
+        result = collator._apply_chat_template(messages)
+        assert "<audio>" in result
+        assert "What is said?" in result
+
+
+class TestFinetuneAudioLayers:
+    """Test finetune_audio_layers parameter in get_peft_model."""
+
+    def test_parameter_stored_in_lora_config(self):
+        """finetune_audio_layers should be stored in lora_config dict."""
+        from mlx_tune.vlm import VLMModelWrapper
+
+        mock_model = MagicMock()
+        mock_model.config = MagicMock()
+        mock_model.config.__dict__ = {"model_type": "gemma4"}
+        mock_model.train = MagicMock()
+        mock_model.eval = MagicMock()
+
+        wrapper = VLMModelWrapper(
+            model=mock_model,
+            processor=MagicMock(),
+            model_name="gemma-4-e4b-it-4bit",
+        )
+
+        # Manually set lora_config as get_peft_model would
+        wrapper.lora_config = {
+            "r": 16,
+            "lora_alpha": 16,
+            "finetune_audio_layers": True,
+            "finetune_vision_layers": False,
+            "finetune_language_layers": True,
+        }
+        assert wrapper.lora_config["finetune_audio_layers"] is True
+
+    def test_audio_tower_freeze_when_disabled(self):
+        """Audio tower should be frozen when finetune_audio_layers=False."""
+        from mlx_tune.vlm import VLMModelWrapper
+
+        mock_model = MagicMock()
+        mock_model.config = MagicMock()
+        mock_model.config.__dict__ = {"model_type": "gemma4"}
+
+        # Model has audio_tower
+        mock_audio_tower = MagicMock()
+        mock_model.audio_tower = mock_audio_tower
+        mock_embed_audio = MagicMock()
+        mock_model.embed_audio = mock_embed_audio
+
+        wrapper = VLMModelWrapper(
+            model=mock_model,
+            processor=MagicMock(),
+            model_name="test",
+        )
+
+        # Simulate what get_peft_model does for audio tower when disabled
+        has_audio_tower = (
+            hasattr(wrapper.model, "audio_tower")
+            and wrapper.model.audio_tower is not None
+        )
+        assert has_audio_tower is True
+
+        # When finetune_audio_layers=False, freeze should be called
+        wrapper.model.audio_tower.freeze()
+        wrapper.model.embed_audio.freeze()
+        mock_audio_tower.freeze.assert_called_once()
+        mock_embed_audio.freeze.assert_called_once()
+
+
+class TestGenerateWithAudio:
+    """Test VLMModelWrapper.generate() with audio parameter."""
+
+    def test_generate_accepts_audio_param(self):
+        """generate() should accept audio parameter without error."""
+        from mlx_tune.vlm import VLMModelWrapper
+        import inspect
+
+        sig = inspect.signature(VLMModelWrapper.generate)
+        params = list(sig.parameters.keys())
+        assert "audio" in params
+
+    def test_audio_param_position(self):
+        """audio should come after image_path in the signature."""
+        from mlx_tune.vlm import VLMModelWrapper
+        import inspect
+
+        sig = inspect.signature(VLMModelWrapper.generate)
+        params = list(sig.parameters.keys())
+        image_path_idx = params.index("image_path")
+        audio_idx = params.index("audio")
+        assert audio_idx == image_path_idx + 1

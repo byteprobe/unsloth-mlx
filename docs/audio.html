@@ -150,6 +150,23 @@ brew install ffmpeg</code></pre>
             <tr><td><strong>Voxtral</strong></td><td>3B</td><td>Mel spectrogram</td><td>16 kHz</td><td>Audio-LLM (Llama)</td></tr>
           </tbody>
         </table>
+        <div class="callout" style="margin-top: 1.5rem;">
+          <div class="callout-title">Gemma 4 Audio (VLM-based STT)</div>
+          <p>Gemma 4 E2B/E4B models have a built-in 12-layer Conformer audio tower for STT/ASR. Unlike the standalone STT models above, Gemma 4 audio is a <strong>modality encoder on a VLM</strong> &mdash; it uses <code>FastVisionModel</code>, <code>UnslothVisionDataCollator</code>, and <code>VLMSFTTrainer</code> instead of the STT-specific classes.</p>
+          <p>See the <a href="vlm.html#tips">VLM page</a> for details, or examples <a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/47_gemma4_audio_asr_finetuning.py">47 (ASR)</a> and <a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/48_gemma4_audio_understanding.py">48 (Audio Understanding)</a>.</p>
+          <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">from mlx_tune import FastVisionModel
+
+model, processor = FastVisionModel.from_pretrained("mlx-community/gemma-4-e4b-it-4bit")
+model = FastVisionModel.get_peft_model(model,
+    finetune_vision_layers=False, finetune_language_layers=True,
+    finetune_audio_layers=False,  # True for acoustic domain adaptation
+    r=16, lora_alpha=16)
+
+# Dataset: {"type": "audio", "audio": "path.wav"} in messages
+# Inference: model.generate(audio="path.wav", prompt="Transcribe.")</code></pre>
+          </div>
+        </div>
       </section>
 
       <!-- ===== Text-to-Speech ===== -->

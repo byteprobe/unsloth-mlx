@@ -159,14 +159,15 @@ print(response)</code></pre>
         <div class="api-entry">
           <h3>FastVisionModel.get_peft_model()</h3>
           <div class="api-signature">
-            <span class="api-name">FastVisionModel.get_peft_model</span>(<span class="api-param">model</span>, <span class="api-param">finetune_vision_layers</span><span class="api-default">=True</span>, <span class="api-param">finetune_language_layers</span><span class="api-default">=True</span>, <span class="api-param">finetune_attention_modules</span><span class="api-default">=True</span>, <span class="api-param">finetune_mlp_modules</span><span class="api-default">=True</span>, <span class="api-param">r</span><span class="api-default">=16</span>, <span class="api-param">lora_alpha</span><span class="api-default">=16</span>, ...) &rarr; <span class="api-param">VLMModelWrapper</span>
+            <span class="api-name">FastVisionModel.get_peft_model</span>(<span class="api-param">model</span>, <span class="api-param">finetune_vision_layers</span><span class="api-default">=True</span>, <span class="api-param">finetune_language_layers</span><span class="api-default">=True</span>, <span class="api-param">finetune_audio_layers</span><span class="api-default">=False</span>, <span class="api-param">finetune_attention_modules</span><span class="api-default">=True</span>, <span class="api-param">finetune_mlp_modules</span><span class="api-default">=True</span>, <span class="api-param">r</span><span class="api-default">=16</span>, <span class="api-param">lora_alpha</span><span class="api-default">=16</span>, ...) &rarr; <span class="api-param">VLMModelWrapper</span>
           </div>
-          <p>Add LoRA adapters to vision and/or language components of the model.</p>
+          <p>Add LoRA adapters to vision, audio, and/or language components of the model.</p>
           <table class="api-params">
             <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
             <tbody>
               <tr><td><code>finetune_vision_layers</code></td><td>bool</td><td><code>True</code></td><td>Apply LoRA to vision encoder layers</td></tr>
               <tr><td><code>finetune_language_layers</code></td><td>bool</td><td><code>True</code></td><td>Apply LoRA to language model layers</td></tr>
+              <tr><td><code>finetune_audio_layers</code></td><td>bool</td><td><code>False</code></td><td>Apply LoRA to audio tower layers (Gemma 4 E2B/E4B Conformer)</td></tr>
               <tr><td><code>finetune_attention_modules</code></td><td>bool</td><td><code>True</code></td><td>Apply LoRA to attention modules (q, k, v, o projections)</td></tr>
               <tr><td><code>finetune_mlp_modules</code></td><td>bool</td><td><code>True</code></td><td>Apply LoRA to MLP/feed-forward modules</td></tr>
               <tr><td><code>r</code></td><td>int</td><td><code>16</code></td><td>LoRA rank (higher = more parameters, better quality)</td></tr>
@@ -204,14 +205,15 @@ print(response)</code></pre>
 
           <h4>model.generate()</h4>
           <div class="api-signature">
-            <span class="api-name">model.generate</span>(<span class="api-param">prompt</span>, <span class="api-param">image</span><span class="api-default">=None</span>, <span class="api-param">max_tokens</span><span class="api-default">=256</span>, <span class="api-param">temperature</span><span class="api-default">=0.0</span>, <span class="api-param">min_p</span><span class="api-default">=0.0</span>) &rarr; <span class="api-param">str</span>
+            <span class="api-name">model.generate</span>(<span class="api-param">prompt</span>, <span class="api-param">image</span><span class="api-default">=None</span>, <span class="api-param">audio</span><span class="api-default">=None</span>, <span class="api-param">max_tokens</span><span class="api-default">=256</span>, <span class="api-param">temperature</span><span class="api-default">=0.0</span>, <span class="api-param">min_p</span><span class="api-default">=0.0</span>) &rarr; <span class="api-param">str</span>
           </div>
-          <p>Generate a response from a text prompt with an optional image. Works for both vision+text and text-only inputs.</p>
+          <p>Generate a response from a text prompt with an optional image or audio. Works for vision+text, audio+text, and text-only inputs.</p>
           <table class="api-params">
             <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
             <tbody>
               <tr><td><code>prompt</code></td><td>str</td><td>Text prompt for the model</td></tr>
               <tr><td><code>image</code></td><td>str, optional</td><td>Path to an image file, or <code>None</code> for text-only</td></tr>
+              <tr><td><code>audio</code></td><td>str, optional</td><td>Path to a .wav audio file for STT/ASR (Gemma 4 E2B/E4B only)</td></tr>
               <tr><td><code>max_tokens</code></td><td>int</td><td>Maximum number of tokens to generate</td></tr>
               <tr><td><code>temperature</code></td><td>float</td><td>Sampling temperature (0.0 = greedy)</td></tr>
               <tr><td><code>min_p</code></td><td>float</td><td>Minimum probability threshold for sampling (recommended: 0.1)</td></tr>
@@ -441,6 +443,20 @@ model.save_pretrained_merged("./vlm_merged", processor)</code></pre>
             <div class="example-tags"><span class="example-tag">VLM</span><span class="example-tag">GRPO</span><span class="example-tag">RL</span></div>
             <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/26_vision_grpo_training.py" target="_blank">View source &rarr;</a></p>
           </div>
+
+          <div class="example-card">
+            <h4>47 &mdash; Gemma 4 Audio ASR</h4>
+            <p>Fine-tune Gemma 4 E4B for speech-to-text via the built-in Conformer audio tower. Language-layer LoRA.</p>
+            <div class="example-tags"><span class="example-tag">VLM</span><span class="example-tag">Audio</span><span class="example-tag">Gemma 4</span></div>
+            <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/47_gemma4_audio_asr_finetuning.py" target="_blank">View source &rarr;</a></p>
+          </div>
+
+          <div class="example-card">
+            <h4>48 &mdash; Gemma 4 Audio Understanding</h4>
+            <p>Audio QA with optional audio tower LoRA for domain-specific acoustic adaptation.</p>
+            <div class="example-tags"><span class="example-tag">VLM</span><span class="example-tag">Audio</span><span class="example-tag">Audio LoRA</span></div>
+            <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/48_gemma4_audio_understanding.py" target="_blank">View source &rarr;</a></p>
+          </div>
         </div>
       </section>
 
@@ -448,6 +464,11 @@ model.save_pretrained_merged("./vlm_merged", processor)</code></pre>
       <section class="section" id="tips">
         <div class="section-label">Tips</div>
         <h2 style="margin-top: 0;">Best practices</h2>
+
+        <div class="callout">
+          <div class="callout-title">Gemma 4 Audio Fine-Tuning</div>
+          <p>Gemma 4 E2B/E4B have a 12-layer Conformer audio tower for STT/ASR. Use <code>{"type": "audio", "audio": "path.wav"}</code> in your dataset messages. Audio goes through the VLM pipeline (<code>FastVisionModel</code>), not <code>FastSTTModel</code>. Set <code>finetune_audio_layers=True</code> to apply LoRA to the Conformer attention layers for domain-specific acoustic adaptation. The 26B and 31B variants do <strong>not</strong> have audio towers.</p>
+        </div>
 
         <div class="callout">
           <div class="callout-title">Batch size must be 1</div>

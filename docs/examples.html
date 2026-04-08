@@ -639,6 +639,87 @@ trainer.train()</code></pre>
             <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/40_gemma4_moe_finetuning.py" target="_blank">Full source &rarr;</a></p>
           </div>
         </div>
+
+        <!-- Gemma 4 Audio -->
+        <div class="example-card">
+          <h4>47 &mdash; Gemma 4 Audio ASR</h4>
+          <p>Fine-tune Gemma 4 E4B for speech-to-text via the built-in 12-layer Conformer audio tower. Language-layer LoRA only.</p>
+          <div class="example-tags"><span class="example-tag">FastVisionModel</span><span class="example-tag">Audio</span><span class="example-tag">ASR</span></div>
+          <button class="example-toggle">View Code</button>
+          <div class="example-code">
+            <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">from mlx_tune import FastVisionModel, UnslothVisionDataCollator, VLMSFTTrainer
+from mlx_tune.vlm import VLMSFTConfig
+
+model, processor = FastVisionModel.from_pretrained(
+    "mlx-community/gemma-4-e4b-it-4bit",
+)
+model = FastVisionModel.get_peft_model(model,
+    finetune_vision_layers=False, finetune_language_layers=True,
+    finetune_audio_layers=False, r=16, lora_alpha=16,
+)
+
+dataset = [{"messages": [
+    {"role": "user", "content": [
+        {"type": "audio", "audio": "audio.wav"},
+        {"type": "text", "text": "Transcribe this audio."},
+    ]},
+    {"role": "assistant", "content": [
+        {"type": "text", "text": "The quick brown fox jumps over the lazy dog."},
+    ]},
+]}]
+
+trainer = VLMSFTTrainer(model=model, tokenizer=processor,
+    data_collator=UnslothVisionDataCollator(model, processor),
+    train_dataset=dataset,
+    args=VLMSFTConfig(max_steps=30, learning_rate=2e-4),
+)
+trainer.train()</code></pre>
+            </div>
+            <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/47_gemma4_audio_asr_finetuning.py" target="_blank">Full source &rarr;</a></p>
+          </div>
+        </div>
+
+        <div class="example-card">
+          <h4>48 &mdash; Gemma 4 Audio Understanding</h4>
+          <p>Audio QA fine-tuning with audio tower LoRA for domain-specific acoustic adaptation.</p>
+          <div class="example-tags"><span class="example-tag">FastVisionModel</span><span class="example-tag">Audio</span><span class="example-tag">Audio Tower LoRA</span></div>
+          <button class="example-toggle">View Code</button>
+          <div class="example-code">
+            <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">from mlx_tune import FastVisionModel, UnslothVisionDataCollator, VLMSFTTrainer
+from mlx_tune.vlm import VLMSFTConfig
+
+model, processor = FastVisionModel.from_pretrained(
+    "mlx-community/gemma-4-e4b-it-4bit",
+)
+model = FastVisionModel.get_peft_model(model,
+    finetune_vision_layers=False, finetune_language_layers=True,
+    finetune_audio_layers=True,  # LoRA on Conformer attention!
+    r=8, lora_alpha=16,
+)
+
+dataset = [{"messages": [
+    {"role": "user", "content": [
+        {"type": "audio", "audio": "audio.wav"},
+        {"type": "text", "text": "What language is being spoken?"},
+    ]},
+    {"role": "assistant", "content": [
+        {"type": "text", "text": "The speaker is speaking English."},
+    ]},
+]}]
+
+trainer = VLMSFTTrainer(model=model, tokenizer=processor,
+    data_collator=UnslothVisionDataCollator(model, processor),
+    train_dataset=dataset,
+    args=VLMSFTConfig(max_steps=30, learning_rate=1e-4),
+)
+trainer.train()</code></pre>
+            </div>
+            <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/48_gemma4_audio_understanding.py" target="_blank">Full source &rarr;</a></p>
+          </div>
+        </div>
+
       </div>
 
       <!-- Audio Models -->

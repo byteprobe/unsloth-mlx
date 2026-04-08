@@ -78,7 +78,7 @@ Local Mac (MLX-Tune)       →     Cloud GPU (Unsloth)
 
 ## Project Status
 
-> 🚀 **v0.4.19** - LFM2 (Liquid AI) support; Continual Pretraining (CPT) with decoupled LR
+> 🚀 **v0.4.20** - Gemma 4 Audio fine-tuning (STT/ASR via Conformer audio tower + optional LoRA)
 
 | Feature | Status | Notes |
 |---------|--------|-------|
@@ -96,6 +96,7 @@ Local Mac (MLX-Tune)       →     Cloud GPU (Unsloth)
 | Column Mapping | ✅ Stable | `apply_column_mapping()` auto-rename |
 | Dataset Config | ✅ Stable | `HFDatasetConfig` structured loading |
 | Vision Models | ✅ Stable | Full VLM fine-tuning via mlx-vlm (**Gemma 4**, Qwen3.5, PaliGemma, LLaVA, Pixtral) |
+| **Gemma 4 Audio** | ✅ Stable | **E2B/E4B STT/ASR via Conformer audio tower + optional audio LoRA** |
 | **MoE Fine-Tuning** | ✅ Stable | **Gemma 4 26B-A4B, Qwen3.5-35B-A3B, Phi-3.5-MoE, Mixtral, DeepSeek, 39+ architectures** |
 | **TTS Fine-Tuning** | ✅ Stable | **Orpheus, OuteTTS, Spark-TTS, Sesame/CSM, Qwen3-TTS** |
 | **STT Fine-Tuning** | ✅ Stable | **Whisper, Moonshine, Qwen3-ASR, Canary, Voxtral** |
@@ -227,6 +228,35 @@ trainer.train()
 ```
 
 See [`examples/38_gemma4_vision_finetuning.py`](examples/38_gemma4_vision_finetuning.py) for Gemma 4 vision fine-tuning, [`examples/39_gemma4_text_to_sql.py`](examples/39_gemma4_text_to_sql.py) for text-only fine-tuning through the VLM path, [`examples/10_qwen35_vision_finetuning.py`](examples/10_qwen35_vision_finetuning.py) for Qwen3.5, or [`examples/26_vision_grpo_training.py`](examples/26_vision_grpo_training.py) for Vision GRPO reasoning.
+
+### Gemma 4 Audio Fine-Tuning
+
+Fine-tune Gemma 4 E2B/E4B for speech-to-text and audio understanding. The 12-layer Conformer audio tower processes 16kHz audio — no separate STT model needed:
+
+```python
+from mlx_tune import FastVisionModel, UnslothVisionDataCollator, VLMSFTTrainer
+from mlx_tune.vlm import VLMSFTConfig
+
+model, processor = FastVisionModel.from_pretrained("mlx-community/gemma-4-e4b-it-4bit")
+model = FastVisionModel.get_peft_model(model,
+    finetune_vision_layers=False, finetune_language_layers=True,
+    finetune_audio_layers=False,  # Set True for domain-specific acoustic adaptation
+    r=16, lora_alpha=16)
+
+# Dataset format: {"type": "audio", "audio": "/path/to/file.wav"}
+dataset = [{"messages": [
+    {"role": "user", "content": [
+        {"type": "audio", "audio": "audio.wav"},
+        {"type": "text", "text": "Transcribe this audio."},
+    ]},
+    {"role": "assistant", "content": [{"type": "text", "text": "Hello world."}]},
+]}]
+
+# Inference with audio
+response = model.generate(audio="audio.wav", prompt="Transcribe this audio.")
+```
+
+See [`examples/47_gemma4_audio_asr_finetuning.py`](examples/47_gemma4_audio_asr_finetuning.py) for ASR fine-tuning or [`examples/48_gemma4_audio_understanding.py`](examples/48_gemma4_audio_understanding.py) for audio understanding with audio tower LoRA.
 
 ### TTS Fine-Tuning
 

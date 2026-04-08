@@ -90,6 +90,19 @@ def _config_to_dict(obj):
     return obj
 
 
+def _freeze_module_safe(module):
+    """Freeze a module, handling submodules with broken _no_grad init.
+
+    Some mlx-vlm audio submodules (e.g. AudioRelativePositionEmbedding)
+    don't properly initialize nn.Module's _no_grad set. We patch those
+    before calling freeze().
+    """
+    for _, submod in module.named_modules():
+        if not hasattr(submod, "_no_grad"):
+            submod._no_grad = set()
+    module.freeze()
+
+
 class FastVisionModel:
     """
     Unsloth-compatible API for Vision Language Models on Apple Silicon.
@@ -160,6 +173,7 @@ class FastVisionModel:
         model: "VLMModelWrapper",
         finetune_vision_layers: bool = True,
         finetune_language_layers: bool = True,
+        finetune_audio_layers: bool = False,
         finetune_attention_modules: bool = True,
         finetune_mlp_modules: bool = True,
         r: int = 16,
@@ -179,6 +193,8 @@ class FastVisionModel:
             model: VLMModelWrapper from from_pretrained()
             finetune_vision_layers: Whether to fine-tune vision encoder layers
             finetune_language_layers: Whether to fine-tune language model layers
+            finetune_audio_layers: Whether to fine-tune audio tower layers
+                (Gemma 4 E2B/E4B only — 12-layer Conformer for STT/ASR)
             finetune_attention_modules: Whether to fine-tune attention layers
             finetune_mlp_modules: Whether to fine-tune MLP layers
             r: LoRA rank
@@ -202,6 +218,7 @@ class FastVisionModel:
             "lora_dropout": lora_dropout,
             "finetune_vision_layers": finetune_vision_layers,
             "finetune_language_layers": finetune_language_layers,
+            "finetune_audio_layers": finetune_audio_layers,
             "finetune_attention_modules": finetune_attention_modules,
             "finetune_mlp_modules": finetune_mlp_modules,
             "target_modules": target_modules,
@@ -233,6 +250,68 @@ class FastVisionModel:
         )
         model._lora_applied = True
         model._linear_layers = linear_layers
+
+        # Handle audio tower (Gemma 4 E2B/E4B Conformer)
+        has_audio_tower = (
+            hasattr(model.model, "audio_tower")
+            and model.model.audio_tower is not None
+        )
+        if has_audio_tower:
+            if finetune_audio_layers:
+                # Apply LoRA to audio tower Conformer attention layers.
+                # Gemma 4 uses ClippableLinear which wraps nn.Linear as
+                # .linear — apply LoRA to the inner Linear layer.
+                import mlx.nn as nn
+                audio_lora_targets = {"q_proj", "k_proj", "v_proj", "post"}
+                audio_lora_count = 0
+                for name, module in model.model.audio_tower.named_modules():
+                    short_name = name.split(".")[-1]
+                    if short_name not in audio_lora_targets:
+                        continue
+                    # Find the Linear layer (direct or wrapped in ClippableLinear)
+                    if isinstance(module, nn.Linear):
+                        target_name = name
+                        base_linear = module
+                    elif hasattr(module, "linear") and isinstance(module.linear, nn.Linear):
+                        target_name = f"{name}.linear"
+                        base_linear = module.linear
+                    else:
+                        continue
+                    from mlx_lm.tuner.lora import LoRALinear
+                    lora_layer = LoRALinear.from_base(
+                        base_linear, r=r, scale=alpha_scale, dropout=lora_dropout,
+                    )
+                    # Set the module on the audio tower
+                    parts = target_name.split(".")
+                    parent = model.model.audio_tower
+                    for p in parts[:-1]:
+                        if p.isdigit():
+                            parent = parent[int(p)]
+                        else:
+                            parent = getattr(parent, p)
+                    setattr(parent, parts[-1], lora_layer)
+                    audio_lora_count += 1
+                # Unfreeze embed_audio projector (skip if quantized — 4-bit
+                # models have QuantizedLinear which can't compute gradients)
+                if hasattr(model.model, "embed_audio") and model.model.embed_audio is not None:
+                    has_quantized = any(
+                        isinstance(m, nn.QuantizedLinear)
+                        for _, m in model.model.embed_audio.named_modules()
+                    )
+                    if has_quantized:
+                        print("Note: embed_audio has quantized layers, keeping frozen "
+                              "(use bf16 model to unfreeze)")
+                    else:
+                        model.model.embed_audio.unfreeze()
+                print(f"Audio tower LoRA: {audio_lora_count} layers adapted")
+            else:
+                # Freeze audio tower so gradients don't flow through it
+                # (mlx-vlm's freeze_model doesn't cover audio_tower)
+                # Use try/except because some audio submodules
+                # (AudioRelativePositionEmbedding) have broken _no_grad init
+                _freeze_module_safe(model.model.audio_tower)
+                if hasattr(model.model, "embed_audio") and model.model.embed_audio is not None:
+                    _freeze_module_safe(model.model.embed_audio)
 
         print(f"LoRA configured: r={r}, alpha={lora_alpha}, "
               f"modules={linear_layers}")
@@ -322,6 +401,7 @@ class VLMModelWrapper:
         prompt: Optional[str] = None,
         image: Optional[Any] = None,
         image_path: Optional[str] = None,
+        audio: Optional[Any] = None,
         max_tokens: int = 256,
         temperature: float = 0.0,
         min_p: float = 0.0,
@@ -329,12 +409,13 @@ class VLMModelWrapper:
         **kwargs,
     ) -> str:
         """
-        Generate response for image+text input.
+        Generate response for image+text or audio+text input.
 
         Args:
             prompt: Text prompt
             image: Image path(s), PIL Image, or list of images
             image_path: Alternative path to image file
+            audio: Audio file path(s) for STT/ASR (Gemma 4 E2B/E4B)
             max_tokens: Maximum tokens to generate
             temperature: Sampling temperature
             min_p: Minimum probability threshold for sampling (recommended: 0.1)
@@ -423,6 +504,52 @@ class VLMModelWrapper:
             finally:
                 for f in temp_files:
                     os.unlink(f)
+        elif audio is not None:
+            # Audio generation — build prompt with audio tokens and pass
+            # audio to prepare_inputs for mel extraction
+            audio_files = audio if isinstance(audio, list) else [audio]
+            messages = [
+                {"role": "user", "content": [
+                    {"type": "audio"},
+                    {"type": "text", "text": prompt or "Transcribe this audio."},
+                ]},
+            ]
+            try:
+                formatted_prompt = self.processor.apply_chat_template(
+                    messages, tokenize=False, add_generation_prompt=True,
+                )
+            except Exception:
+                formatted_prompt = prompt or "Transcribe this audio."
+
+            # Verify audio tokens are present
+            audio_token = getattr(self.processor, "audio_token", "")
+            if audio_token and audio_token not in formatted_prompt:
+                text_part = prompt or "Transcribe this audio."
+                formatted_prompt = f"{audio_token}\n{text_part}"
+
+            config = self.model.config.__dict__ if hasattr(self.model.config, "__dict__") else self.model.config
+            image_token_index = config.get("image_token_index", config.get("image_token_id"))
+
+            inputs = prepare_inputs(
+                processor=self.processor,
+                images=None,
+                audio=audio_files,
+                prompts=formatted_prompt,
+                image_token_index=image_token_index,
+            )
+
+            extra = {k: v for k, v in inputs.items()
+                     if k not in ("input_ids", "pixel_values", "attention_mask")}
+
+            text = ""
+            for response in vlm_stream_generate(
+                self.model, self.processor, prompt=formatted_prompt,
+                input_ids=inputs["input_ids"],
+                pixel_values=inputs.get("pixel_values"),
+                mask=inputs.get("attention_mask"),
+                **extra, **gen_kwargs,
+            ):
+                text += response.text
         else:
             # Text-only generation — apply chat template so the model
             # sees proper <|im_start|>user/assistant tokens
@@ -752,8 +879,9 @@ class UnslothVisionDataCollator:
         for sample in samples:
             messages = sample.get("messages", sample.get("conversations", []))
             images = []
+            audio_files = []
 
-            # Extract images from messages and build clean messages for template
+            # Extract images/audio from messages and build clean messages for template
             clean_messages = []
             for msg in messages:
                 content = msg.get("content", "")
@@ -769,6 +897,12 @@ class UnslothVisionDataCollator:
                                     images.append(img)
                                 # Keep image marker for processor's chat template
                                 final_content.append({"type": "image"})
+                            elif item.get("type") == "audio":
+                                audio = item.get("audio")
+                                if audio is not None:
+                                    audio_files.append(audio)
+                                # Keep audio marker for processor's chat template
+                                final_content.append({"type": "audio"})
                     clean_messages.append({"role": msg["role"], "content": final_content})
                 else:
                     clean_messages.append(msg)
@@ -783,11 +917,11 @@ class UnslothVisionDataCollator:
                 self._config.get("image_token_id"),
             )
 
-            # Prepare inputs using mlx-vlm (handles image tokenization)
+            # Prepare inputs using mlx-vlm (handles image/audio tokenization)
             inputs = prepare_inputs(
                 processor=self.processor,
                 images=images if images else None,
-                audio=None,
+                audio=audio_files if audio_files else None,
                 prompts=[prompt],
                 image_token_index=image_token_index,
             )
@@ -862,7 +996,7 @@ class UnslothVisionDataCollator:
                 result = self.processor.apply_chat_template(
                     messages, tokenize=False, add_generation_prompt=False,
                 )
-                # Verify result contains image tokens if images are present
+                # Verify result contains image/audio tokens if media is present
                 has_images = any(
                     isinstance(m.get("content"), list)
                     and any(
@@ -871,21 +1005,33 @@ class UnslothVisionDataCollator:
                     )
                     for m in messages
                 )
-                if has_images:
-                    # Check for common image token patterns
+                has_audio = any(
+                    isinstance(m.get("content"), list)
+                    and any(
+                        isinstance(c, dict) and c.get("type") == "audio"
+                        for c in m["content"]
+                    )
+                    for m in messages
+                )
+                if has_images or has_audio:
+                    # Check for common image/audio token patterns
                     image_token = getattr(self.processor, "image_token", "<image>")
+                    audio_token = getattr(self.processor, "audio_token", "")
                     common_tokens = [image_token, "<|image_pad|>", "<|vision_start|>",
                                      "<image>", "<img>"]
+                    if audio_token:
+                        common_tokens.append(audio_token)
                     if any(tok in result for tok in common_tokens):
                         return result
-                    # Template didn't insert image tokens — fall through to manual build
+                    # Template didn't insert media tokens — fall through to manual build
                 else:
                     return result
             except Exception:
                 pass
 
-        # Fallback: flatten mixed-type content into text with explicit image tokens
+        # Fallback: flatten mixed-type content into text with explicit image/audio tokens
         image_token = getattr(self.processor, "image_token", "<image>")
+        audio_token = getattr(self.processor, "audio_token", "<audio>")
         flat_messages = []
         for msg in messages:
             content = msg.get("content", "")
@@ -897,6 +1043,8 @@ class UnslothVisionDataCollator:
                             parts.append(item.get("text", ""))
                         elif item.get("type") == "image":
                             parts.append(image_token)
+                        elif item.get("type") == "audio":
+                            parts.append(audio_token)
                 flat_messages.append({"role": msg["role"], "content": "\n".join(parts)})
             else:
                 flat_messages.append(msg)
