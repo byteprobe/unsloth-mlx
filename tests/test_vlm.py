@@ -782,3 +782,138 @@ class TestGenerateWithAudio:
         image_path_idx = params.index("image_path")
         audio_idx = params.index("audio")
         assert audio_idx == image_path_idx + 1
+
+
+class TestAssistantRoleTokenDetection:
+    """
+    Regression tests for the train_on_completions role-marker detection.
+
+    Bug history: a "model"-first lookup silently picked token 2528 (the word
+    "model") for Qwen/GLM tokenizers, where the chat template actually uses
+    <|im_start|>assistant. That token never appeared in the sequence, the
+    completion mask became all-zeros, and loss stayed at 0.0000 — silently
+    breaking all non-Gemma OCR/VLM training.
+    """
+
+    def _fake_tokenizer(self, template_style: str):
+        """
+        Build a minimal fake tokenizer with encode(), decode(), and
+        apply_chat_template().
+
+        template_style: "qwen" → role word "assistant" appears in the header;
+                        "gemma" → role word "model" appears in the header.
+        """
+        word_ids = {"assistant": 77091, "model": 2528, "<sep>": 999, "user": 882}
+        id_to_word = {v: k for k, v in word_ids.items()}
+
+        def encode(s, add_special_tokens=False):
+            if s in word_ids:
+                return [word_ids[s]]
+            if s == "":
+                return []
+            return [hash(s) % 1000 + 100]
+
+        def decode(ids):
+            # Accept list/tuple/single-int
+            if hasattr(ids, "__iter__"):
+                return "".join(id_to_word.get(i, "") for i in ids)
+            return id_to_word.get(ids, "")
+
+        def apply_chat_template(msgs, tokenize=True, add_generation_prompt=False):
+            toks = []
+            for m in msgs:
+                toks.append(999)
+                if m["role"] == "assistant":
+                    toks.append(77091 if template_style == "qwen" else 2528)
+                else:
+                    toks.append(882)  # "user"
+                toks.append(999)
+                toks.append(200)  # content placeholder
+            if add_generation_prompt:
+                toks.append(999)
+                toks.append(77091 if template_style == "qwen" else 2528)
+                toks.append(999)
+            return toks if tokenize else "".join(str(t) for t in toks)
+
+        # Use a plain object so MagicMock doesn't auto-generate a .tokenizer attr
+        class _Tok:
+            pass
+        tok = _Tok()
+        tok.encode = encode
+        tok.decode = decode
+        tok.apply_chat_template = apply_chat_template
+        return tok
+
+    def test_qwen_style_picks_assistant(self):
+        """Qwen/GLM templates use '<|im_start|>assistant\\n' → detect token 77091."""
+        from mlx_tune.vlm import _detect_assistant_role_token
+
+        class _P:
+            pass
+        processor = _P()
+        processor.tokenizer = self._fake_tokenizer("qwen")
+        assert _detect_assistant_role_token(processor) == 77091
+
+    def test_gemma_style_picks_model(self):
+        """Gemma templates use '<start_of_turn>model\\n' → detect token 2528."""
+        from mlx_tune.vlm import _detect_assistant_role_token
+
+        class _P:
+            pass
+        processor = _P()
+        processor.tokenizer = self._fake_tokenizer("gemma")
+        assert _detect_assistant_role_token(processor) == 2528
+
+    def test_processor_without_tokenizer_attr(self):
+        """Processor that IS the tokenizer (no .tokenizer attribute) still works."""
+        from mlx_tune.vlm import _detect_assistant_role_token
+        assert _detect_assistant_role_token(self._fake_tokenizer("qwen")) == 77091
+
+    def test_none_processor_returns_none(self):
+        from mlx_tune.vlm import _detect_assistant_role_token
+        assert _detect_assistant_role_token(None) is None
+
+    def test_template_without_generation_prompt_support(self):
+        """Falls back to scanning a full user+assistant render when add_generation_prompt raises."""
+        from mlx_tune.vlm import _detect_assistant_role_token
+
+        class _Tok:
+            def encode(self, s, add_special_tokens=False):
+                return {"assistant": [77091], "model": [2528]}.get(s, [])
+
+            def decode(self, ids):
+                if hasattr(ids, "__iter__"):
+                    return "".join({77091: "assistant", 2528: "model"}.get(i, "") for i in ids)
+                return {77091: "assistant", 2528: "model"}.get(ids, "")
+
+            def apply_chat_template(self, msgs, tokenize=True, add_generation_prompt=False):
+                if add_generation_prompt:
+                    raise ValueError("this template has no gen prompt")
+                # Full user+assistant render always has role word 77091 in it
+                return [100, 77091, 200] if any(m["role"] == "assistant" for m in msgs) else [100, 200]
+
+        class _P:
+            pass
+        processor = _P()
+        processor.tokenizer = _Tok()
+        assert _detect_assistant_role_token(processor) == 77091
+
+    def test_broken_tokenizer_returns_fallback(self):
+        """If everything fails, fall back to standalone 'assistant' encoding."""
+        from mlx_tune.vlm import _detect_assistant_role_token
+
+        class _Tok:
+            def encode(self, s, add_special_tokens=False):
+                return [77091] if s == "assistant" else []
+
+            def decode(self, ids):
+                return ""
+
+            def apply_chat_template(self, *args, **kwargs):
+                raise RuntimeError("template broken")
+
+        class _P:
+            pass
+        processor = _P()
+        processor.tokenizer = _Tok()
+        assert _detect_assistant_role_token(processor) == 77091

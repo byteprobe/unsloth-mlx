@@ -1068,6 +1068,124 @@ class UnslothVisionDataCollator:
         )
 
 
+def _detect_assistant_role_token(processor: Any) -> Optional[int]:
+    """
+    Detect the token id that marks the start of an assistant turn in this
+    tokenizer's chat template.
+
+    Strategy: render the template for a single user message twice — once with
+    ``add_generation_prompt=True`` (appends the assistant header, e.g.
+    ``<|im_start|>assistant\\n`` for Qwen/GLM or ``<start_of_turn>model\\n``
+    for Gemma) and once without. The diff is the assistant header. We then
+    decode each header token and pick the one whose text contains "model" or
+    "assistant" (preferring the later occurrence). Decoding avoids a BPE
+    context trap — ``encode("model")`` in isolation can return a different
+    token id than the same word inside ``<start_of_turn>model`` due to BPE
+    merges.
+
+    This replaces an earlier heuristic that hard-coded the order
+    ``["model", "assistant"]`` with ``encode(word)[0]``, which silently
+    broke every non-Gemma VLM (Qwen, GLM, DeepSeek, Pixtral…): the first
+    loop iteration always succeeded with the standalone "model" token id,
+    that id never appeared in the rendered sequence, the completion mask
+    became all-zeros, and loss stayed at 0.0000.
+
+    Returns the token id to use as the `in_completion` trigger, or None if
+    detection fails entirely.
+    """
+    if processor is None:
+        return None
+    tokenizer = getattr(processor, "tokenizer", processor)
+    if not hasattr(tokenizer, "apply_chat_template"):
+        return None
+
+    def _render_tokens(msgs, add_gen_prompt):
+        try:
+            result = tokenizer.apply_chat_template(
+                msgs, tokenize=True, add_generation_prompt=add_gen_prompt,
+            )
+        except Exception:
+            return None
+        # Some processors/tokenizers return a BatchEncoding / dict with
+        # {"input_ids": [...], "attention_mask": [...]}. Unwrap it.
+        if isinstance(result, dict) or hasattr(result, "keys"):
+            try:
+                result = result["input_ids"]
+            except Exception:
+                return None
+        # Flatten a 2D (batched) shape to 1D if needed.
+        if result and hasattr(result, "__iter__"):
+            try:
+                first = next(iter(result))
+            except Exception:
+                return None
+            if hasattr(first, "__iter__") and not isinstance(first, (str, bytes)):
+                result = list(first)
+        try:
+            return [int(t) for t in result]
+        except Exception:
+            return None
+
+    def _decode_one(tok_id):
+        try:
+            return tokenizer.decode([tok_id])
+        except Exception:
+            return ""
+
+    user_only = [{"role": "user", "content": "hi"}]
+    with_gen = _render_tokens(user_only, True)
+    without_gen = _render_tokens(user_only, False)
+
+    # Find the header tokens (those appended when add_generation_prompt=True).
+    header_tokens: List[int] = []
+    if with_gen is not None and without_gen is not None and len(with_gen) > len(without_gen):
+        n = len(without_gen)
+        i = 0
+        while i < n and with_gen[i] == without_gen[i]:
+            i += 1
+        header_tokens = with_gen[i:]
+
+    def _pick_from(tokens: List[int]) -> Optional[int]:
+        # Later match wins — in a chat header the role word is right before
+        # the content position, which is the tail end of the sequence.
+        best_id, best_pos = None, -1
+        for idx, tok_id in enumerate(tokens):
+            text = _decode_one(tok_id).lower()
+            if "assistant" in text or "model" in text:
+                if idx > best_pos:
+                    best_pos, best_id = idx, tok_id
+        return best_id
+
+    if header_tokens:
+        picked = _pick_from(header_tokens)
+        if picked is not None:
+            return picked
+
+    # Fallback 1: render a full user+assistant exchange and scan for a token
+    # whose decoded text contains "assistant" or "model".
+    full = _render_tokens(
+        [{"role": "user", "content": "hi"},
+         {"role": "assistant", "content": "x"}],
+        False,
+    )
+    if full:
+        picked = _pick_from(full)
+        if picked is not None:
+            return picked
+
+    # Fallback 2: standalone encoding of "assistant" then "model". Matches the
+    # pre-regression behavior from Session 26 for Qwen/GLM/DeepSeek.
+    if hasattr(tokenizer, "encode"):
+        for word in ("assistant", "model"):
+            try:
+                ids = tokenizer.encode(word, add_special_tokens=False)
+            except Exception:
+                ids = None
+            if ids:
+                return ids[0]
+    return None
+
+
 class _VLMTrainerShim:
     """
     Compatibility shim for mlx-vlm >=0.4.0 where the Trainer class was removed.
@@ -1259,19 +1377,14 @@ class VLMSFTTrainer:
         # Set up optimizer
         optimizer = optim.Adam(learning_rate=self.learning_rate)
 
-        # Auto-detect assistant token ID for response-only training
+        # Auto-detect assistant role-header token for response-only training.
+        # Uses chat-template rendering to pick the correct marker per model
+        # family (e.g. "assistant" for Qwen/GLM, "model" for Gemma).
         assistant_id = None
         if self.train_on_completions and self.processor is not None:
-            tokenizer = getattr(self.processor, "tokenizer", self.processor)
-            if hasattr(tokenizer, "encode"):
-                # Try "model" first (Gemma uses <|turn>model), then "assistant"
-                for role_name in ["model", "assistant"]:
-                    ids = tokenizer.encode(role_name, add_special_tokens=False)
-                    if ids:
-                        assistant_id = ids[0]
-                        break
-                if assistant_id is None:
-                    assistant_id = 77091  # fallback
+            assistant_id = _detect_assistant_role_token(self.processor)
+            if assistant_id is None:
+                assistant_id = 77091  # last-resort fallback (Qwen default)
 
         # Set up training internals
         if _MLX_VLM_LEGACY and VLMTrainerInternal is not None:

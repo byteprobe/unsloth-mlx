@@ -78,6 +78,8 @@ Local Mac (MLX-Tune)       →     Cloud GPU (Unsloth)
 
 ## Project Status
 
+> 🛠️ **v0.4.23** — Bugfix for VLM/OCR fine-tuning ([issue #14](https://github.com/ARahim3/mlx-tune/issues/14))
+>
 > 🚀 **v0.4.22** - NVIDIA Parakeet TDT fine-tuning (FastConformer + TDT, three pure-MLX transducer losses, auto vocab extension for any Unicode language)
 
 | Feature | Status | Notes |

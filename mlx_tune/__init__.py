@@ -17,7 +17,7 @@ Supported Training Methods:
 - OCR (Optical Character Recognition) fine-tuning
 """
 
-__version__ = "0.4.22"  # NVIDIA Parakeet TDT Fine-Tuning
+__version__ = "0.4.23"  # Fix: VLM/OCR train_on_completions regression
 
 from mlx_tune.model import FastLanguageModel
 from mlx_tune.trainer import (
