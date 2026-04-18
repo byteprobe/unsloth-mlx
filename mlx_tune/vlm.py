@@ -488,17 +488,29 @@ class VLMModelWrapper:
                     image_token_index=image_token_index,
                 )
 
-                # Generate using pre-computed inputs
+                # Generate using pre-computed inputs.
+                # Some custom processors (e.g. DeepSeek-OCR's spatial-crop
+                # pipeline) return image tensors under a non-standard key —
+                # when `pixel_values` is absent from inputs, the image data is
+                # already carried in `extra` under whatever key the model
+                # expects, so only forward `pixel_values` when present.
                 extra = {k: v for k, v in inputs.items()
                          if k not in ("input_ids", "pixel_values", "attention_mask")}
+
+                call_kwargs = {
+                    "input_ids": inputs["input_ids"],
+                    "mask": inputs.get("attention_mask"),
+                    **extra,
+                    **gen_kwargs,
+                }
+                pv = inputs.get("pixel_values")
+                if pv is not None:
+                    call_kwargs["pixel_values"] = pv
 
                 text = ""
                 for response in vlm_stream_generate(
                     self.model, self.processor, prompt=formatted_prompt,
-                    input_ids=inputs["input_ids"],
-                    pixel_values=inputs["pixel_values"],
-                    mask=inputs.get("attention_mask"),
-                    **extra, **gen_kwargs,
+                    **call_kwargs,
                 ):
                     text += response.text
             finally:

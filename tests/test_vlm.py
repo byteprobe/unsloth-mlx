@@ -917,3 +917,109 @@ class TestAssistantRoleTokenDetection:
         processor = _P()
         processor.tokenizer = _Tok()
         assert _detect_assistant_role_token(processor) == 77091
+
+
+class TestGenerateHandlesMissingPixelValues:
+    """
+    Regression test for issue #14 follow-up: DeepSeek-OCR's custom processor
+    returns an `inputs` dict without a "pixel_values" key (image data carried
+    under a model-specific key instead). Before the fix, `generate()` did
+    `inputs["pixel_values"]` and raised KeyError at inference time for both
+    the pre-training test call and `batch_transcribe()` post-training eval.
+
+    After the fix, `pixel_values` is forwarded only when present; otherwise
+    the call relies on extra kwargs already carrying the image data.
+    """
+
+    def test_generate_does_not_pass_missing_pixel_values(self, tmp_path, monkeypatch):
+        import mlx.core as mx
+        from PIL import Image as PILImage
+        from mlx_tune import vlm as vlm_mod
+        from mlx_tune.vlm import VLMModelWrapper
+
+        # Simulate a custom processor's prepare_inputs that omits pixel_values
+        # but carries the image data under a model-specific key (`image_embeds`).
+        captured_calls = []
+        sentinel_input_ids = mx.array([[1, 2, 3]])
+        sentinel_image_embeds = mx.array([[0.1, 0.2, 0.3]])
+
+        def fake_prepare_inputs(processor, images, prompts, image_token_index, **kw):
+            return {
+                "input_ids": sentinel_input_ids,
+                "attention_mask": mx.array([[1, 1, 1]]),
+                "image_embeds": sentinel_image_embeds,
+            }
+
+        def fake_stream_generate(model, processor, **kwargs):
+            captured_calls.append(kwargs)
+            class _R:
+                text = "ok"
+            yield _R()
+
+        monkeypatch.setattr(vlm_mod, "prepare_inputs", fake_prepare_inputs)
+        monkeypatch.setattr(vlm_mod, "vlm_stream_generate", fake_stream_generate)
+
+        model = MagicMock()
+        model.config = MagicMock()
+        model.config.__dict__ = {"image_token_index": 151655}
+        processor = MagicMock()
+        processor.apply_chat_template.return_value = "<image>\nOCR"
+        processor.image_token = "<image>"
+
+        wrapper = VLMModelWrapper(model=model, processor=processor, model_name="deepseek-ocr-test")
+
+        img = PILImage.new("RGB", (32, 32), (255, 255, 255))
+
+        # Previously this raised KeyError: 'pixel_values'
+        out = wrapper.generate(prompt="Transcribe", image=img, max_tokens=1)
+
+        assert out == "ok"
+        assert len(captured_calls) == 1
+        kwargs = captured_calls[0]
+        # pixel_values must NOT be forwarded when absent from inputs
+        assert "pixel_values" not in kwargs, \
+            "pixel_values should be omitted when inputs dict lacks that key"
+        # the model-specific image carrier must still flow through
+        assert "image_embeds" in kwargs
+        assert kwargs["input_ids"] is sentinel_input_ids
+
+    def test_generate_still_passes_pixel_values_when_present(self, tmp_path, monkeypatch):
+        """Standard VLMs (Qwen, GLM-OCR, etc.) must still have pixel_values forwarded."""
+        import mlx.core as mx
+        from PIL import Image as PILImage
+        from mlx_tune import vlm as vlm_mod
+        from mlx_tune.vlm import VLMModelWrapper
+
+        sentinel_pv = mx.array([[[0.5]]])
+        captured_calls = []
+
+        def fake_prepare_inputs(processor, images, prompts, image_token_index, **kw):
+            return {
+                "input_ids": mx.array([[1, 2]]),
+                "attention_mask": mx.array([[1, 1]]),
+                "pixel_values": sentinel_pv,
+            }
+
+        def fake_stream_generate(model, processor, **kwargs):
+            captured_calls.append(kwargs)
+            class _R:
+                text = "hi"
+            yield _R()
+
+        monkeypatch.setattr(vlm_mod, "prepare_inputs", fake_prepare_inputs)
+        monkeypatch.setattr(vlm_mod, "vlm_stream_generate", fake_stream_generate)
+
+        model = MagicMock()
+        model.config = MagicMock()
+        model.config.__dict__ = {"image_token_index": 77091}
+        processor = MagicMock()
+        processor.apply_chat_template.return_value = "<|vision_start|>\nOCR"
+        processor.image_token = "<|vision_start|>"
+
+        wrapper = VLMModelWrapper(model=model, processor=processor, model_name="qwen-test")
+        img = PILImage.new("RGB", (32, 32), (0, 0, 0))
+        wrapper.generate(prompt="Describe", image=img, max_tokens=1)
+
+        assert len(captured_calls) == 1
+        assert "pixel_values" in captured_calls[0]
+        assert captured_calls[0]["pixel_values"] is sentinel_pv

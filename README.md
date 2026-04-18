@@ -78,9 +78,7 @@ Local Mac (MLX-Tune)       →     Cloud GPU (Unsloth)
 
 ## Project Status
 
-> 🛠️ **v0.4.23** — Bugfix for VLM/OCR fine-tuning ([issue #14](https://github.com/ARahim3/mlx-tune/issues/14))
->
-> 🚀 **v0.4.22** - NVIDIA Parakeet TDT fine-tuning (FastConformer + TDT, three pure-MLX transducer losses, auto vocab extension for any Unicode language)
+> 🛠️ **v0.4.24** — VLM/OCR bugfix cycle ([issue #14](https://github.com/ARahim3/mlx-tune/issues/14) + DeepSeek-OCR inference path). Last feature release: v0.4.22 — NVIDIA Parakeet TDT fine-tuning.
 
 | Feature | Status | Notes |
 |---------|--------|-------|
@@ -568,6 +566,24 @@ Check [`examples/`](examples/) for working code:
 **Related Issues**:
 - [mlx-lm #353](https://github.com/ml-explore/mlx-lm/issues/353) - MLX to GGUF conversion
 - [mlx-examples #1382](https://github.com/ml-explore/mlx-examples/issues/1382) - Quantized to GGUF
+
+### DeepSeek-OCR requires transformers<5.0
+
+**The Issue**: DeepSeek-OCR's model repo (`mlx-community/DeepSeek-OCR-*`) ships remote code that imports `LlamaFlashAttention2` from `transformers.models.llama.modeling_llama`. That symbol was **removed in transformers 5.0**. Recent mlx-tune installs pull `mlx-lm>=0.31`, which requires `transformers>=5.0`, so a fresh `pip install mlx-tune` cannot load DeepSeek-OCR out of the box.
+
+**Additional missing deps**: DeepSeek-OCR's remote code also imports `addict`, `einops`, and `matplotlib` — none of these are declared by mlx-tune, mlx-vlm, or the model repo. You need to install them manually.
+
+**Working environment** (verified):
+```bash
+uv pip install 'transformers>=4.45,<5.0' 'mlx-lm<0.31' 'mlx-vlm<0.4' addict einops matplotlib
+uv pip install mlx-tune --no-deps     # skip dep upgrade
+```
+
+**Symptom if you hit it**:
+- mlx-vlm raises `Unrecognized processing class` from `AutoProcessor.from_pretrained` (the real ImportError is swallowed by mlx-vlm's patch wrapper)
+- Debug by calling `DeepseekOCRProcessor.from_pretrained(model_path, trust_remote_code=True)` directly to see the underlying error
+
+DeepSeek-OCR-2 (`mlx-community/DeepSeek-OCR-2-*`) needs mlx-vlm>=0.4 which needs transformers>=5.0 → currently not loadable anywhere. Tracking this upstream.
 
 ## Contributing
 
