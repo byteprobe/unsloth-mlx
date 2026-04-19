@@ -3,91 +3,167 @@
 <head>
   <meta charset="UTF-8" />
   <title>mlx-tune — OG Image</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --bg-primary: #ffffff;
+      --bg-tertiary: #eef1f5;
+      --text-primary: #1a1a1a;
+      --text-secondary: #4a4a4a;
+      --text-muted: #888888;
+      --accent: #0066cc;
+      --accent-hover: #0052a3;
+      --accent-subtle: rgba(0, 102, 204, 0.08);
+      --border: #e6e8eb;
+    }
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
+
+    html, body {
       width: 1200px;
       height: 630px;
-      background: #f8f9fa;
+    }
+
+    body {
+      background: var(--bg-primary);
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
       position: relative;
       overflow: hidden;
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: var(--text-primary);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
 
-    /* Subtle top gradient glow — matches homepage hero-glow */
+    /* Matches homepage .hero-glow::before — radial tint from the top center,
+       widened so the fade is gentle and doesn't form a visible bright disc around the logo. */
     body::before {
       content: '';
       position: absolute;
-      top: -80px;
+      top: -400px;
       left: 50%;
       transform: translateX(-50%);
-      width: 900px;
-      height: 300px;
-      background: radial-gradient(ellipse, rgba(0,0,0,0.03) 0%, transparent 70%);
+      width: 1600px;
+      height: 1100px;
+      background: radial-gradient(ellipse, var(--accent-subtle) 0%, transparent 65%);
+      pointer-events: none;
+      opacity: 0.7;
     }
 
-    .content {
+    .hero {
       text-align: center;
-      z-index: 1;
       position: relative;
+      z-index: 1;
+      padding: 0 48px;
+      max-width: 1000px;
     }
 
-    .logo {
-      margin-bottom: 28px;
-    }
-    .logo img {
-      height: 88px;
-      width: auto;
+    .hero-logo {
+      width: 280px;
+      height: auto;
+      display: block;
+      margin: 0 auto 22px;
     }
 
-    h1 {
-      font-size: 36px;
+    .hero-tagline {
+      font-size: 40px;
       font-weight: 700;
-      color: #1a1a1a;
       letter-spacing: -0.025em;
-      margin-bottom: 14px;
-      line-height: 1.25;
+      line-height: 1.15;
+      color: var(--text-primary);
+      margin-bottom: 12px;
     }
 
-    .subtitle {
+    .hero-subtitle {
+      font-size: 20px;
+      font-weight: 400;
+      color: var(--text-secondary);
+      line-height: 1.45;
+      margin: 0 auto 24px;
+      max-width: 760px;
+    }
+
+    .hero-install {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 20px;
+      font-family: 'SF Mono', 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
       font-size: 19px;
-      color: #888888;
-      margin-bottom: 32px;
-      line-height: 1.5;
+      color: var(--text-primary);
+      margin-bottom: 24px;
+    }
+    .hero-install .dollar {
+      color: var(--text-muted);
+    }
+    .hero-install .copy-icon {
+      width: 18px;
+      height: 18px;
+      color: var(--text-muted);
     }
 
-    .install-pill {
+    .hero-buttons {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .btn {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      background: #ffffff;
-      border: 1px solid #e0e0e0;
-      border-radius: 10px;
-      padding: 12px 28px;
-      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      padding: 11px 24px;
+      border-radius: 8px;
       font-size: 17px;
-      color: #1a1a1a;
+      font-weight: 600;
+      font-family: inherit;
     }
-    .install-pill .dollar {
-      color: #888888;
+
+    .btn-primary {
+      background: var(--accent);
+      color: #ffffff;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary svg {
+      width: 18px;
+      height: 18px;
     }
   </style>
 </head>
 <body>
-  <div class="content">
-    <div class="logo">
-      <img src="logo.png" alt="mlx-tune" />
+  <section class="hero">
+    <img src="logo-transparent.png" alt="mlx-tune" class="hero-logo" />
+    <h1 class="hero-tagline">Fine-tune LLMs, Vision, and Audio models on your Mac</h1>
+    <p class="hero-subtitle">SFT, DPO, GRPO, Vision, TTS, STT, and OCR fine-tuning &mdash; natively on MLX. Unsloth-compatible API.</p>
+
+    <div class="hero-install">
+      <span class="dollar">$</span>
+      <span>pip install mlx-tune</span>
+      <svg class="copy-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/>
+        <path d="M2.5 10.5V3a1.5 1.5 0 011.5-1.5h7.5"/>
+      </svg>
     </div>
-    <h1>Fine-tune LLMs, Vision, and Audio models on your Mac</h1>
-    <p class="subtitle">SFT, DPO, GRPO, Vision, TTS, STT, and OCR fine-tuning — natively on MLX.<br>Unsloth-compatible API.</p>
-    <div class="install-pill">
-      <span class="dollar">$</span> pip install mlx-tune
+
+    <div class="hero-buttons">
+      <span class="btn btn-primary">Get Started</span>
+      <span class="btn btn-secondary">
+        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        View on GitHub
+      </span>
     </div>
-  </div>
+  </section>
 </body>
 </html>
