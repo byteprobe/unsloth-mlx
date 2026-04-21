@@ -78,7 +78,7 @@ Local Mac (MLX-Tune)       →     Cloud GPU (Unsloth)
 
 ## Project Status
 
-> 🛠️ **v0.4.24** — VLM/OCR bugfix cycle ([issue #14](https://github.com/ARahim3/mlx-tune/issues/14) + DeepSeek-OCR inference path). Last feature release: v0.4.22 — NVIDIA Parakeet TDT fine-tuning.
+> 🚀 **v0.4.25** — Arcee Trinity-Nano (AFMoE) fine-tuning: SFT, GRPO reasoning, and CPT recipes with per-expert LoRA over 128 experts + 1 shared expert. Also: CPT now correctly detects LoRA-wrapped quantized `lm_head` (benefits every 4-bit CPT, not just Trinity).
 
 | Feature | Status | Notes |
 |---------|--------|-------|
@@ -97,7 +97,7 @@ Local Mac (MLX-Tune)       →     Cloud GPU (Unsloth)
 | Dataset Config | ✅ Stable | `HFDatasetConfig` structured loading |
 | Vision Models | ✅ Stable | Full VLM fine-tuning via mlx-vlm (**Gemma 4**, Qwen3.5, PaliGemma, LLaVA, Pixtral) |
 | **Gemma 4 Audio** | ✅ Stable | **E2B/E4B STT/ASR via Conformer audio tower + optional audio LoRA** |
-| **MoE Fine-Tuning** | ✅ Stable | **Gemma 4 26B-A4B, Qwen3.5-35B-A3B, Phi-3.5-MoE, Mixtral, DeepSeek, 39+ architectures** |
+| **MoE Fine-Tuning** | ✅ Stable | **Arcee Trinity-Nano (AFMoE), Gemma 4 26B-A4B, Qwen3.5-35B-A3B, Phi-3.5-MoE, Mixtral, DeepSeek, 39+ architectures** |
 | **TTS Fine-Tuning** | ✅ Stable | **Orpheus, OuteTTS, Spark-TTS, Sesame/CSM, Qwen3-TTS** |
 | **STT Fine-Tuning** | ✅ Stable | **Whisper, Moonshine, Qwen3-ASR, Canary, Voxtral, Voxtral Realtime (streaming), Parakeet TDT (CTC/RNN-T/TDT losses + auto vocab extension)** |
 | **`convert()`** | ✅ Stable | **HF → MLX conversion (LLM, TTS, STT)** |
@@ -451,9 +451,9 @@ model = FastLanguageModel.get_peft_model(
 # Prints: "MoE architecture detected — LoRA will target expert layers (SwitchLinear)"
 ```
 
-**Supported MoE models**: Qwen3.5-35B-A3B, Qwen3-30B-A3B, Phi-3.5-MoE, Mixtral, DeepSeek-V2/V3, GLM-MoE, and all other MoE architectures in mlx-lm.
+**Supported MoE models**: Arcee Trinity-Nano (AFMoE, 6B/1B active, 128 experts + 1 shared), Qwen3.5-35B-A3B, Qwen3-30B-A3B, Phi-3.5-MoE, Mixtral, DeepSeek-V2/V3, GLM-MoE, and all other MoE architectures in mlx-lm.
 
-See examples: [Qwen3.5 MoE](examples/29_qwen35_moe_finetuning.py), [Phi-3.5 MoE](examples/30_phi35_moe_finetuning.py).
+See examples: [Qwen3.5 MoE](examples/29_qwen35_moe_finetuning.py), [Phi-3.5 MoE](examples/30_phi35_moe_finetuning.py), [Trinity-Nano SFT](examples/54_trinity_moe_sft.py), [Trinity-Nano GRPO](examples/55_trinity_moe_grpo.py), [Trinity-Nano CPT](examples/56_trinity_moe_cpt.py).
 
 ### Post-Training Workflow
 
@@ -490,7 +490,7 @@ model.push_to_hub("username/my-model")
 | **Embedding** | `EmbeddingSFTTrainer` | ✅ Native MLX | BERT, ModernBERT, Qwen3-Embedding, Harrier (InfoNCE) |
 | **OCR SFT** | `OCRSFTTrainer` | ✅ Native MLX | DeepSeek-OCR, GLM-OCR, Qwen-VL, Pixtral (CER/WER eval) |
 | **OCR GRPO** | `OCRGRPOTrainer` | ✅ Native MLX | OCR with character-level RL rewards |
-| **MoE** | `SFTTrainer` | ✅ Native MLX | Qwen3.5-MoE, Phi-3.5-MoE, Mixtral, DeepSeek (39+ archs) |
+| **MoE** | `SFTTrainer` | ✅ Native MLX | Arcee Trinity-Nano (AFMoE), Qwen3.5-MoE, Phi-3.5-MoE, Mixtral, DeepSeek (39+ archs) |
 | **CPT** | `CPTTrainer` | ✅ Native MLX | Continual pretraining with decoupled LR, embed training |
 | **LFM2** | `SFTTrainer` | ✅ Native MLX | Liquid AI LFM2/LFM2.5 (hybrid conv+GQA, Thinking) |
 
@@ -506,7 +506,7 @@ Check [`examples/`](examples/) for working code:
 - STT fine-tuning — Whisper (13), Moonshine (16), Qwen3-ASR (17), Canary (18), Voxtral (19), Voxtral Realtime streaming (49), Parakeet TDT English (50), Parakeet Welsh new-language (51), Parakeet Bengali auto vocab extension (52), Parakeet Arabic BPE extension (53)
 - Embedding fine-tuning — BERT/MiniLM (27), Qwen3-Embedding (28), Harrier-0.6B (31), Harrier-270M (32)
 - **OCR fine-tuning** — Document OCR (33), VLM→OCR (34), Handwriting (35), OCR GRPO (36), Multilingual (37)
-- **MoE fine-tuning** — Qwen3.5-35B-A3B (29), Phi-3.5-MoE (30)
+- **MoE fine-tuning** — Qwen3.5-35B-A3B (29), Phi-3.5-MoE (30), **Arcee Trinity-Nano AFMoE: SFT (54), GRPO reasoning (55), CPT (56)**
 - **LFM2 fine-tuning** — LFM2 SFT (41), LFM2.5-Thinking (42)
 - **Continual Pretraining** — Language (43), Domain (44), Code (45), LFM2+CPT (46)
 

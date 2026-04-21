@@ -17,7 +17,7 @@ Supported Training Methods:
 - OCR (Optical Character Recognition) fine-tuning
 """
 
-__version__ = "0.4.24"  # Fix: generate() KeyError on models without pixel_values (DeepSeek-OCR)
+__version__ = "0.4.25"  # Add: Arcee Trinity-Nano / AFMoE fine-tuning (SFT, GRPO, CPT) + CPT quantized-lm_head fix
 
 from mlx_tune.model import FastLanguageModel
 from mlx_tune.trainer import (

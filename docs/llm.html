@@ -538,6 +538,7 @@ trainer.train()</code></pre>
         <table class="api-params">
           <thead><tr><th>Model</th><th>Total / Active Params</th><th>MLX Model ID</th></tr></thead>
           <tbody>
+            <tr><td>Arcee Trinity-Nano (AFMoE)</td><td>6B / 1B</td><td><code>mlx-community/Trinity-Nano-Preview-4bit</code> &mdash; 128 experts + 1 shared, sigmoid routing, gated attention</td></tr>
             <tr><td>Gemma 4 26B-A4B</td><td>26B / ~4B</td><td><code>mlx-community/gemma-4-26b-a4b-it-4bit</code> (VLM path)</td></tr>
             <tr><td>Qwen3.5-35B-A3B</td><td>35B / 3B</td><td><code>mlx-community/Qwen3.5-35B-A3B-4bit</code></td></tr>
             <tr><td>Qwen3-30B-A3B</td><td>30B / 3B</td><td><code>mlx-community/Qwen3-30B-A3B-Instruct-2507-4bit</code></td></tr>
@@ -842,6 +843,18 @@ trainer = train_on_responses_only(
             <tr>
               <td><strong><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/30_phi35_moe_finetuning.py" target="_blank" rel="noopener">30</a></strong></td>
               <td>MoE &mdash; Phi-3.5-MoE fine-tuning (42B total, Microsoft)</td>
+            </tr>
+            <tr>
+              <td><strong><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/54_trinity_moe_sft.py" target="_blank" rel="noopener">54</a></strong></td>
+              <td>Trinity-Nano (AFMoE) &mdash; instruction SFT on the 6B/1B-active MoE with 128 experts + 1 shared</td>
+            </tr>
+            <tr>
+              <td><strong><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/55_trinity_moe_grpo.py" target="_blank" rel="noopener">55</a></strong></td>
+              <td>Trinity-Nano (AFMoE) &mdash; GRPO reasoning with &lt;reasoning&gt;/&lt;answer&gt; reward shaping</td>
+            </tr>
+            <tr>
+              <td><strong><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/56_trinity_moe_cpt.py" target="_blank" rel="noopener">56</a></strong></td>
+              <td>Trinity-Nano (AFMoE) &mdash; continual pretraining with decoupled embedding LR</td>
             </tr>
             <tr>
               <td><strong><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/41_lfm2_sft_finetuning.py" target="_blank" rel="noopener">41</a></strong></td>

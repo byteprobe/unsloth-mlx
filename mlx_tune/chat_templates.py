@@ -382,6 +382,15 @@ TEMPLATE_ALIASES: Dict[str, str] = {
     "lfm25": "chatml",
     "lfm2.5": "chatml",
     "liquid": "chatml",
+
+    # Arcee Trinity / AFMoE aliases
+    # Trinity uses pure ChatML (<|im_start|>role\n...<|im_end|>), eos=<|im_end|>
+    "trinity": "chatml",
+    "trinity-nano": "chatml",
+    "trinity-mini": "chatml",
+    "trinity-large": "chatml",
+    "afmoe": "chatml",
+    "arcee": "chatml",
 }
 
 
@@ -1010,6 +1019,10 @@ def get_template_for_model(model_name: str) -> str:
         return 'deepseek-v2'
 
     if 'lfm' in name or 'liquid' in name:
+        return 'chatml'
+
+    # Arcee Trinity / AFMoE family — pure ChatML
+    if 'trinity' in name or 'afmoe' in name or 'arcee' in name:
         return 'chatml'
 
     if 'vicuna' in name:

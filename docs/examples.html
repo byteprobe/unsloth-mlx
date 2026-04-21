@@ -1531,60 +1531,139 @@ trainer.train()</code></pre>
         <p>Fine-tune Mixture of Experts models with per-expert LoRA. Same API as dense models &mdash; MoE detection is automatic.</p>
 
         <div class="example-grid">
-          <div class="example-card">
-            <span class="example-badge">MoE</span>
-            <h4>29 &mdash; Qwen3.5 MoE Fine-Tuning</h4>
-            <p>Fine-tune Qwen3.5-35B-A3B (35B total, 3B active) with automatic MoE detection. Expert layers get LoRASwitchLinear, shared experts and dense layers get standard LoRALinear.</p>
-            <div class="code-block-wrapper">
-              <button class="copy-btn">Copy</button>
-              <pre><code class="language-python">from mlx_tune import FastLanguageModel, SFTTrainer, SFTConfig
 
-model, tokenizer = FastLanguageModel.from_pretrained(
-    "mlx-community/Qwen3.5-35B-A3B-4bit",
-    max_seq_length=2048, load_in_4bit=True,
-)
+          <div class="example-card">
+            <h4>29 &mdash; Qwen3.5 MoE Fine-Tuning</h4>
+            <p>Fine-tune Qwen3.5-35B-A3B (35B total, 3B active) with automatic MoE detection. Expert layers get <code>LoRASwitchLinear</code>, shared experts and dense layers get standard <code>LoRALinear</code>.</p>
+            <div class="example-tags"><span class="example-tag">MoE</span><span class="example-tag">Qwen3.5</span><span class="example-tag">35B-A3B</span><span class="example-tag">LoRA</span></div>
+            <button class="example-toggle">View Code</button>
+            <div class="example-code">
+              <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">from mlx_tune import FastLanguageModel, SFTTrainer, SFTConfig
+
+model, tok = FastLanguageModel.from_pretrained(
+    "mlx-community/Qwen3.5-35B-A3B-4bit", load_in_4bit=True)
 
 # Same target_modules — MoE paths resolved automatically
-model = FastLanguageModel.get_peft_model(
-    model, r=8,
-    target_modules=["q_proj", "k_proj", "v_proj", "o_proj",
-                    "gate_proj", "up_proj", "down_proj"],
-)
+model = FastLanguageModel.get_peft_model(model, r=8,
+    target_modules=["q_proj","k_proj","v_proj","o_proj",
+                    "gate_proj","up_proj","down_proj"])
 # Prints: "MoE architecture detected — LoRA will target expert layers"
 
-trainer = SFTTrainer(model=model, train_dataset=dataset, tokenizer=tokenizer,
-    args=SFTConfig(output_dir="outputs_moe", max_steps=10))
-trainer.train()</code></pre>
+SFTTrainer(model=model, train_dataset=dataset, tokenizer=tok,
+    args=SFTConfig(output_dir="outputs_moe", max_steps=10)).train()</code></pre>
+              </div>
+              <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/29_qwen35_moe_finetuning.py" target="_blank">Full source &rarr;</a></p>
             </div>
-            <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/29_qwen35_moe_finetuning.py" target="_blank">Full source &rarr;</a></p>
           </div>
 
           <div class="example-card">
-            <span class="example-badge">MoE</span>
             <h4>30 &mdash; Phi-3.5 MoE Fine-Tuning</h4>
             <p>Fine-tune Microsoft&rsquo;s Phi-3.5-MoE-instruct (42B total, 16 experts, top-2 routing). Demonstrates architecture-agnostic MoE support &mdash; PhiMoE uses <code>block_sparse_moe</code> paths.</p>
-            <div class="code-block-wrapper">
-              <button class="copy-btn">Copy</button>
-              <pre><code class="language-python">from mlx_tune import FastLanguageModel, SFTTrainer, SFTConfig
+            <div class="example-tags"><span class="example-tag">MoE</span><span class="example-tag">Phi-3.5</span><span class="example-tag">16 experts</span><span class="example-tag">LoRA</span></div>
+            <button class="example-toggle">View Code</button>
+            <div class="example-code">
+              <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">from mlx_tune import FastLanguageModel, SFTTrainer, SFTConfig
 
 # Microsoft Phi-3.5-MoE — different MoE structure, same API
-model, tokenizer = FastLanguageModel.from_pretrained(
-    "mlx-community/Phi-3.5-MoE-instruct-4bit",
-    max_seq_length=2048, load_in_4bit=True,
-)
+model, tok = FastLanguageModel.from_pretrained(
+    "mlx-community/Phi-3.5-MoE-instruct-4bit", load_in_4bit=True)
 
-model = FastLanguageModel.get_peft_model(
-    model, r=8,
-    target_modules=["q_proj", "k_proj", "v_proj", "o_proj",
-                    "gate_proj", "up_proj", "down_proj"],
-)
+model = FastLanguageModel.get_peft_model(model, r=8,
+    target_modules=["q_proj","k_proj","v_proj","o_proj",
+                    "gate_proj","up_proj","down_proj"])
 
-trainer = SFTTrainer(model=model, train_dataset=dataset, tokenizer=tokenizer,
-    args=SFTConfig(output_dir="outputs_phi_moe", max_steps=10))
-trainer.train()</code></pre>
+SFTTrainer(model=model, train_dataset=dataset, tokenizer=tok,
+    args=SFTConfig(output_dir="outputs_phi_moe", max_steps=10)).train()</code></pre>
+              </div>
+              <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/30_phi35_moe_finetuning.py" target="_blank">Full source &rarr;</a></p>
             </div>
-            <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/30_phi35_moe_finetuning.py" target="_blank">Full source &rarr;</a></p>
           </div>
+
+          <div class="example-card">
+            <h4>54 &mdash; Trinity-Nano SFT (AFMoE)</h4>
+            <p>Instruction SFT on Arcee&rsquo;s Trinity-Nano-Preview (6B total / 1B active, 128 experts + 1 shared, sigmoid routing, gated attention) on <code>mlabonne/FineTome-100k</code>. Per-expert LoRA auto-applies via <code>LoRASwitchLinear</code>.</p>
+            <div class="example-tags"><span class="example-tag">AFMoE</span><span class="example-tag">SFT</span><span class="example-tag">ChatML</span><span class="example-tag">FineTome</span></div>
+            <button class="example-toggle">View Code</button>
+            <div class="example-code">
+              <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">from mlx_tune import FastLanguageModel, SFTTrainer, SFTConfig
+from datasets import load_dataset
+
+model, tok = FastLanguageModel.from_pretrained(
+    "mlx-community/Trinity-Nano-Preview-4bit", load_in_4bit=True)
+model = FastLanguageModel.get_peft_model(model, r=8, lora_alpha=16,
+    target_modules=["q_proj","k_proj","v_proj","o_proj",
+                    "gate_proj","up_proj","down_proj"])
+
+ds = load_dataset("mlabonne/FineTome-100k", split="train[:200]")
+# ShareGPT (from/value) -> ChatML via apply_chat_template
+
+SFTTrainer(model=model, tokenizer=tok, train_dataset=ds,
+    args=SFTConfig(max_steps=20, learning_rate=2e-4)).train()
+
+model.save_pretrained("outputs_trinity_sft/saved_adapters")
+model.save_pretrained_merged("outputs_trinity_sft/merged_model", tokenizer=tok)</code></pre>
+              </div>
+              <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/54_trinity_moe_sft.py" target="_blank">Full source &rarr;</a></p>
+            </div>
+          </div>
+
+          <div class="example-card">
+            <h4>55 &mdash; Trinity-Nano GRPO on GSM8K</h4>
+            <p>Two-phase reasoning recipe: Phase-1 SFT warmup on GSM8K rationales reshaped into <code>&lt;reasoning&gt;</code>/<code>&lt;answer&gt;</code>, then Phase-2 GRPO with a layered reward (1.0 strict &rarr; 0.25 any-tag). Fixes the &ldquo;zero reward variance&rdquo; no-op trap on preview models.</p>
+            <div class="example-tags"><span class="example-tag">AFMoE</span><span class="example-tag">GRPO</span><span class="example-tag">Reasoning</span><span class="example-tag">GSM8K</span></div>
+            <button class="example-toggle">View Code</button>
+            <div class="example-code">
+              <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">from mlx_tune import (FastLanguageModel, SFTTrainer, SFTConfig,
+                       GRPOTrainer, GRPOConfig)
+
+# Phase 1 — SFT warmup teaches the XML format
+SFTTrainer(model=model, tokenizer=tok, train_dataset=cot_formatted_gsm8k,
+    args=SFTConfig(max_steps=20, learning_rate=2e-4)).train()
+
+# Phase 2 — GRPO with layered reward (partial credit creates variance)
+def soft_reward(response, gt):
+    # 1.0 strict XML+correct / 0.7 format+correct / 0.5 correct-only
+    # 0.25 any-tag / 0.0 otherwise
+    ...
+
+GRPOTrainer(model=model, tokenizer=tok, train_dataset=grpo_prompts,
+    reward_fn=soft_reward,
+    args=GRPOConfig(num_generations=4, temperature=1.0,
+                    learning_rate=5e-6, max_steps=8)).train()</code></pre>
+              </div>
+              <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/55_trinity_moe_grpo.py" target="_blank">Full source &rarr;</a></p>
+            </div>
+          </div>
+
+          <div class="example-card">
+            <h4>56 &mdash; Trinity-Nano CPT on WikiText</h4>
+            <p>Continual pretraining on <code>Salesforce/wikitext</code> (wikitext-2-raw-v1) with decoupled embedding LR. Handles Trinity&rsquo;s quantized <code>lm_head</code> via the v0.4.25 <code>_is_quantized</code> fix that sees through <code>LoRALinear</code> wrappers.</p>
+            <div class="example-tags"><span class="example-tag">AFMoE</span><span class="example-tag">CPT</span><span class="example-tag">Raw Text</span><span class="example-tag">WikiText</span></div>
+            <button class="example-toggle">View Code</button>
+            <div class="example-code">
+              <div class="code-block-wrapper"><button class="copy-btn">Copy</button>
+<pre><code class="language-python">from mlx_tune import FastLanguageModel, CPTTrainer, CPTConfig
+from datasets import load_dataset
+
+ds = load_dataset("Salesforce/wikitext", "wikitext-2-raw-v1", split="train")
+# filter non-empty, then load into CPTTrainer
+
+CPTTrainer(model=model, tokenizer=tok, train_dataset=ds,
+    args=CPTConfig(
+        learning_rate=5e-5,
+        embedding_learning_rate=5e-6,   # 10x smaller protects embeddings
+        include_embeddings=True,
+        max_steps=20,
+    )).train()</code></pre>
+              </div>
+              <p><a href="https://github.com/ARahim3/mlx-tune/blob/main/examples/56_trinity_moe_cpt.py" target="_blank">Full source &rarr;</a></p>
+            </div>
+          </div>
+
         </div>
       </div>
 

@@ -314,9 +314,19 @@ class CPTTrainer:
         actual_model = self.model.model if hasattr(self.model, 'model') else self.model
 
         def _is_quantized(module):
-            """Check if a module uses quantized weights (no gradient support)."""
+            """Check if a module uses quantized weights (no gradient support).
+
+            Also detects LoRA-wrapped quantized layers: mlx-lm's LoRALinear
+            stores the base at `.linear`, so a LoRA'd lm_head may arrive here
+            as LoRALinear(linear=QuantizedLinear(...)).
+            """
             type_name = type(module).__name__
-            return 'Quantized' in type_name
+            if 'Quantized' in type_name:
+                return True
+            inner = getattr(module, 'linear', None)
+            if inner is not None and 'Quantized' in type(inner).__name__:
+                return True
+            return False
 
         # Find and unfreeze embed_tokens
         embed = None
